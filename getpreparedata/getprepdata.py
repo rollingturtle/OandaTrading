@@ -3,6 +3,8 @@ import numpy as np
 import tpqoa
 from datetime import datetime, timedelta
 import time
+import logging
+
 
 import sys
 sys.path.append('../')
@@ -20,7 +22,7 @@ class OandaDataCollector():
         self.api_oanda = tpqoa.tpqoa(conf_file)
 
 
-    def get_most_recent(self, instrument, brl, days = 5, window = 50, sma_int=10):
+    def get_most_recent(self, instrument, brl, days = 2, window = 10, sma_int=5):
 
         time.sleep(2) # TODO: to avoid issue to get up to now, we need to set a delay? What it is for??
         bar_length = pd.to_timedelta(brl)
@@ -41,12 +43,13 @@ class OandaDataCollector():
         #                          inplace = True) # "c" stands for close price
 
         # resampling data at the desired bar lenght, holding the last value of the bar period (.last())
-        df = self.raw_data_bfrs.resample(bar_length).last().dropna().iloc[:-1] # label = "right"
+        df = self.raw_data_bfrs.resample(bar_length,
+                                         label = "right").last().dropna().iloc[:-1] # label = "right"
 
         symbol = 'c'
 
         # Todo: do this check better
-        print(len(df[symbol]), end="<<<<<=====")
+        logging.info("Resampled DF")
         assert len(df[symbol]) > sma_int, \
             "the dataframe lenght is not greater than the Simple Moving Average interval"
         assert len(df[symbol]) > window, \
@@ -74,19 +77,27 @@ class OandaDataCollector():
 
 
 if __name__ == '__main__':
+    #logging.basicConfig(level=logging.INFO)
+
+    # configuration file for oanda access
     conf_file = cfg.config_path + "oanda.cfg"
 
     odc = OandaDataCollector(conf_file)
+    logging.info('OandaDataCollector object created')
+
+    # parameters for data collection
     instrument = "EUR_USD"
-    brl = "5min"
+    brl = "5min" # bar lenght for resampling
+
+    # actual data collection of most recent data
+    logging.info('OandaDataCollector data collection starts...')
     odc.get_most_recent(instrument, brl = brl)
 
+
     print("All row data downloaded from Oanda for instrument {}".format(instrument))
-    print(odc.raw_data_bfrs, end="\n  ******** \n")
     print(odc.raw_data_bfrs.info(),  end="\n  ******** \n")
 
     print("Re-sampled data for bar length {} from Oanda for instrument {}".format(brl, instrument))
-    print(odc.raw_data, end="\n  ******** \n")
     print(odc.raw_data.info(),  end="\n  ******** \n")
 
 
