@@ -4,7 +4,8 @@ import tpqoa
 from datetime import datetime, timedelta
 import time
 import logging
-
+import os
+import os.path
 
 import sys
 sys.path.append('../')
@@ -12,7 +13,11 @@ import configs.config as cfg
 
 
 class OandaDataCollector():
-    def __init__(self,
+    '''
+    Class that downloads data from Oanda for a specific instrument, creates feature, and lagged features.
+    It can save the data into a set of folders defined in the config module
+    '''
+    def __init__(self, instrument,
                  conf_file
                  ):
 
@@ -20,17 +25,25 @@ class OandaDataCollector():
         self.raw_data_resampled = None
         self.last_bar = None
         self.api_oanda = tpqoa.tpqoa(conf_file)
+        self.instrument = instrument
 
 
-    def get_most_recent(self, instrument, granul="S5", days = 2):
-        #time.sleep(2) # TODO: to avoid issue to get up to now, we need to set a delay? What it is for??
+    def get_most_recent(self, granul="S5", days = 2):
+        '''
+        Get the most recent data for the instrument for which the object was created
+        :param granul: base frequency for raw data being downloaded
+        :param days: number of past days (from today) we are downloading data for
+        '''
+
         # set start and end date for historical data retrieval
         now = datetime.utcnow()
         now = now - timedelta(microseconds = now.microsecond) # Oanda does not deal with microseconds
         past = now - timedelta(days = days)
+
         # get historical data up to now
+        logging.info("get_most_recent: calling tpqoa get_history....")
         self.raw_data = self.api_oanda.get_history(
-            instrument = instrument,
+            instrument = self.instrument,
             start = past, end = now,
             granularity = granul,
             price = "M",
@@ -69,8 +82,8 @@ class OandaDataCollector():
         # same labels to identify direction and amount of change
         df["dir"] = np.where(df["returns"] > 0, 1, 0)  # market direction
         # Todo 1 - review these: likely to be wrong! returns are logret, ptc is estimated proportional cost per transaction
-        df["profit_over_spread"] = np.where(df["returns"] > hspread_ptc, 1, 0)  # profit over spread
-        df["loss_over_spread"] = np.where(df["returns"] < 1 - hspread_ptc, 1, 0)  # loss under spread
+        df["profit_over_spread"] = np.where(df["returns"] > np.log(1 + hspread_ptc), 1, 0)  # profit over spread
+        df["loss_over_spread"] = np.where(df["returns"] < np.log(1 - hspread_ptc), 1, 0)  # loss under spread
 
         df["sma"] = df[ref_price].rolling(window).mean() - df[ref_price].rolling(sma_int).mean()
         df["boll"] = (df[ref_price] - df[ref_price].rolling(window).mean()) / df[ref_price].rolling(window).std()
@@ -83,6 +96,10 @@ class OandaDataCollector():
         return
 
     def resample_data(self,  brl="1min"):
+        '''
+        Resample data already obtained to the frequency defined by brl
+        :param brl: default 1min
+        '''
         bar_length = pd.to_timedelta(brl)
 
         # resampling data at the desired bar length, holding the last value of the bar period (.last())
@@ -94,7 +111,7 @@ class OandaDataCollector():
 
 
     def make_lagged_features(self, lags=5):
-        ''' Add lagged features to data'''
+        ''' Add lagged features to data. Default lag is 5'''
         cols = []
         features = ["dir", "sma", "boll", "min", "max", "mom", "vol"]
         for f in features:
@@ -107,7 +124,10 @@ class OandaDataCollector():
 
 
     def make_3_datasets(self, split_pcs=(0.7, 0.15, 0.15), save_to_file=True):
-        ''' Generate 3 datasets for ML training/evaluation/test and save to files'''
+        '''
+        Generate 3 datasets for ML training/evaluation/test and save to files.
+        Default percentages are (0.7, 0.15, 0.15)
+        '''
 
         if self.raw_data_resampled is not None: # it was populated in precedence
             df = self.raw_data_resampled
@@ -124,24 +144,51 @@ class OandaDataCollector():
         self.test_ds = df.iloc[val_split:].copy()
 
         if save_to_file:
-            # TODO: save to DATA folder
-            print(self.train_ds.info())
+            base_data_folder_name = cfg.data_path + str(self.instrument) + "/"
+            train_folder = base_data_folder_name + "Train/"
+            valid_folder = base_data_folder_name + "Valid/"
+            test_folder = base_data_folder_name + "Test/"
 
-        pass
-    # Todo 2: method which splits data in 2 or 3 parts and save it into prepared folder under instrument name
+            if os.path.exists(base_data_folder_name):
+                logging.info("Base folder exists: overwriting files!")
+            else:
+                logging.info("Non existent Base folder: creating it...")
+                os.mkdir(base_data_folder_name)
+                os.mkdir(train_folder)
+                os.mkdir(valid_folder)
+                os.mkdir(test_folder)
+
+            train_filename = train_folder + "train.xlsx"
+            valid_filename = valid_folder + "valid.xlsx"
+            test_filename = test_folder + "test.xlsx"
+
+            # TODO: save to DATA folder
+            logging.info('Saving files to {}'.format(base_data_folder_name))
+
+            self.train_ds.to_excel(train_filename, index = False, header=True)
+            logging.info("Save train_ds to {}".format(train_filename))
+            self.validation_ds.to_excel(valid_filename, index = False, header=True)
+            logging.info("Save valid_ds to {}".format(valid_filename))
+            self.test_ds.to_excel(test_filename, index = False, header=True)
+            logging.info("Save test_ds to {}".format(test_filename))
+
+            print(self.train_ds.info())
+        return
 
 
 if __name__ == '__main__':
     # main executes functional test
 
-    odc = OandaDataCollector(cfg.conf_file)
-    logging.info('OandaDataCollector object created')
     # parameters for data collection
     instrument = "EUR_USD"
     brl = "1min" # bar lenght for resampling
+
+    odc = OandaDataCollector(instrument, cfg.conf_file)
+    logging.info('OandaDataCollector object created')
+
     # actual data collection of most recent data
     logging.info('OandaDataCollector data collection starts...')
-    odc.get_most_recent(instrument)
+    odc.get_most_recent(days = 20)
     odc.make_features()
     odc.make_lagged_features()
     odc.resample_data(brl = brl)
