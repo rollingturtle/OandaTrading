@@ -27,8 +27,13 @@ assert os.path.exists(base_data_folder_name), "Base data folder DO NOT exists!"
 train_filename = train_folder + "train.csv"
 valid_filename = valid_folder + "valid.csv"
 test_filename = test_folder + "test.csv"
+train_labl_filename = train_folder + "trainlabels.csv"
+valid_labl_filename = valid_folder + "validlabels.csv"
+test_labl_filename = test_folder + "testlabels.csv"
 
-train_data = pd.read_excel(train_filename, parse_dates = ["time"], index_col = "time")
+train_data = pd.read_csv(train_filename) #, parse_dates = ["time"], index_col = "time")
+train_labels = pd.read_csv(train_labl_filename) #, parse_dates = ["time"], index_col = "time")
+
 
 set_seeds(100)
 
@@ -40,5 +45,5 @@ for col in all_cols:
         cols.append(col)
 
 model = create_model(dropout = True, input_dim = len(cols)) # hl = 3, hu = 50,
-model.fit(x = train_data[cols], y = train_data["dir"], epochs = 50, verbose = True,
-          validation_split = 0.2, shuffle = False, class_weight = cw(train))
+model.fit(x = train_data[cols], y = train_labels["dir"], epochs = 50, verbose = True,
+          validation_split = 0.2, shuffle = False, class_weight = cw(train_labels))

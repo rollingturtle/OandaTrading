@@ -150,8 +150,7 @@ class OandaDataCollector():
         self.train_ds_std = (self.train_ds - mu) / std
         self.validation_ds_std = (self.train_ds - mu) / std
         self.test_ds_std = (self.train_ds - mu) / std
-        # Todo: add label files for clarify and simplification; standardization changes label columns as well :(
-        # on the label file the weights for classes could be then computed in trainer.py
+        return
 
     def save_to_file(self):
         '''Save the previously formed dataset to disk'''
@@ -174,7 +173,11 @@ class OandaDataCollector():
         valid_filename = valid_folder + "valid.csv"
         test_filename = test_folder + "test.csv"
 
-        logging.info('Saving files to {}'.format(base_data_folder_name))
+        train_labl_filename = train_folder + "trainlabels.csv"
+        valid_labl_filename = valid_folder + "validlabels.csv"
+        test_labl_filename = test_folder + "testlabels.csv"
+
+        logging.info('Saving data input files to {}'.format(base_data_folder_name))
 
         self.train_ds_std.to_csv(train_filename, index = False, header=True)
         logging.info("Save train_ds to {}".format(train_filename))
@@ -182,6 +185,14 @@ class OandaDataCollector():
         logging.info("Save valid_ds to {}".format(valid_filename))
         self.test_ds_std.to_csv(test_filename, index = False, header=True)
         logging.info("Save test_ds to {}".format(test_filename))
+
+        logging.info('Saving data label files to {}'.format(base_data_folder_name))
+
+        labels = ["dir", "profit_over_spread", "loss_over_spread"]
+        self.train_ds[labels].to_csv(train_labl_filename, index = False, header=True)
+        self.validation_ds[labels].to_csv(valid_labl_filename, index = False, header=True)
+        self.test_ds[labels].to_csv(test_labl_filename, index = False, header=True)
+
         return
 
 
@@ -197,7 +208,7 @@ if __name__ == '__main__':
 
     # actual data collection of most recent data
     logging.info('OandaDataCollector data collection starts...')
-    odc.get_most_recent(days = 30)
+    odc.get_most_recent(days = 3)
     odc.make_features()
     odc.make_lagged_features()
     odc.resample_data(brl = brl)
