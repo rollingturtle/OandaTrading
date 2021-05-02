@@ -27,7 +27,6 @@ class OandaDataCollector():
         self.api_oanda = tpqoa.tpqoa(conf_file)
         self.instrument = instrument
 
-
     def get_most_recent(self, granul="S5", days = 2):
         '''
         Get the most recent data for the instrument for which the object was created
@@ -49,7 +48,6 @@ class OandaDataCollector():
             price = "M",
             localize = False).dropna() #c.dropna().to_frame()
         return
-
 
     def make_features(self, window = 10, sma_int=5, hspread_ptc=0.007):
         '''
@@ -84,7 +82,6 @@ class OandaDataCollector():
         # Todo 1 - review these: likely to be wrong! returns are logret, ptc is estimated proportional cost per transaction
         df["profit_over_spread"] = np.where(df["returns"] > np.log(1 + hspread_ptc), 1, 0)  # profit over spread
         df["loss_over_spread"] = np.where(df["returns"] < np.log(1 - hspread_ptc), 1, 0)  # loss under spread
-
         df["sma"] = df[ref_price].rolling(window).mean() - df[ref_price].rolling(sma_int).mean()
         df["boll"] = (df[ref_price] - df[ref_price].rolling(window).mean()) / df[ref_price].rolling(window).std()
         df["min"] = df[ref_price].rolling(window).min() / df[ref_price] - 1
@@ -109,7 +106,6 @@ class OandaDataCollector():
         # dropna is here to remove weekends. iloc to remove the last bar/row typically incomplete
         return
 
-
     def make_lagged_features(self, lags=5):
         ''' Add lagged features to data. Default lag is 5'''
         cols = []
@@ -122,8 +118,7 @@ class OandaDataCollector():
         self.raw_data.dropna(inplace=True)
         return
 
-
-    def make_3_datasets(self, split_pcs=(0.7, 0.15, 0.15), save_to_file=True):
+    def make_3_datasets(self, split_pcs=(0.7, 0.15, 0.15)):
         '''
         Generate 3 datasets for ML training/evaluation/test and save to files.
         Default percentages are (0.7, 0.15, 0.15)
@@ -142,37 +137,51 @@ class OandaDataCollector():
         self.train_ds = df.iloc[:train_split].copy()
         self.validation_ds = df.iloc[train_split:val_split].copy()
         self.test_ds = df.iloc[val_split:].copy()
+        return
 
-        if save_to_file:
-            base_data_folder_name = cfg.data_path + str(self.instrument) + "/"
-            train_folder = base_data_folder_name + "Train/"
-            valid_folder = base_data_folder_name + "Valid/"
-            test_folder = base_data_folder_name + "Test/"
+    def standardize(self):
+        '''
+        standardize the 3 datasets, using mean and std from train dataset
+        to be called after make_3_datasets
+        '''
+        mu, std = self.train_ds.mean(), self.train_ds.std()
 
-            if os.path.exists(base_data_folder_name):
-                logging.info("Base folder exists: overwriting files!")
-            else:
-                logging.info("Non existent Base folder: creating it...")
-                os.mkdir(base_data_folder_name)
-                os.mkdir(train_folder)
-                os.mkdir(valid_folder)
-                os.mkdir(test_folder)
+        # standardize all of them using training data derived statistics
+        self.train_ds_std = (self.train_ds - mu) / std
+        self.validation_ds_std = (self.train_ds - mu) / std
+        self.test_ds_std = (self.train_ds - mu) / std
+        # Todo: add label files for clarify and simplification; standardization changes label columns as well :(
+        # on the label file the weights for classes could be then computed in trainer.py
 
-            train_filename = train_folder + "train.xlsx"
-            valid_filename = valid_folder + "valid.xlsx"
-            test_filename = test_folder + "test.xlsx"
+    def save_to_file(self):
+        '''Save the previously formed dataset to disk'''
+        base_data_folder_name = cfg.data_path + str(self.instrument) + "/"
+        train_folder = base_data_folder_name + "Train/"
+        valid_folder = base_data_folder_name + "Valid/"
+        test_folder = base_data_folder_name + "Test/"
 
-            # TODO: save to DATA folder
-            logging.info('Saving files to {}'.format(base_data_folder_name))
+        if os.path.exists(base_data_folder_name):
+            logging.info("Base folder exists: overwriting files!")
+            #Todo add choice to break out
+        else:
+            logging.info("Non existent Base folder: creating it...")
+            os.mkdir(base_data_folder_name)
+            os.mkdir(train_folder)
+            os.mkdir(valid_folder)
+            os.mkdir(test_folder)
 
-            self.train_ds.to_excel(train_filename, index = False, header=True)
-            logging.info("Save train_ds to {}".format(train_filename))
-            self.validation_ds.to_excel(valid_filename, index = False, header=True)
-            logging.info("Save valid_ds to {}".format(valid_filename))
-            self.test_ds.to_excel(test_filename, index = False, header=True)
-            logging.info("Save test_ds to {}".format(test_filename))
+        train_filename = train_folder + "train.csv"
+        valid_filename = valid_folder + "valid.csv"
+        test_filename = test_folder + "test.csv"
 
-            print(self.train_ds.info())
+        logging.info('Saving files to {}'.format(base_data_folder_name))
+
+        self.train_ds_std.to_csv(train_filename, index = False, header=True)
+        logging.info("Save train_ds to {}".format(train_filename))
+        self.validation_ds_std.to_csv(valid_filename, index = False, header=True)
+        logging.info("Save valid_ds to {}".format(valid_filename))
+        self.test_ds_std.to_csv(test_filename, index = False, header=True)
+        logging.info("Save test_ds to {}".format(test_filename))
         return
 
 
@@ -188,11 +197,14 @@ if __name__ == '__main__':
 
     # actual data collection of most recent data
     logging.info('OandaDataCollector data collection starts...')
-    odc.get_most_recent(days = 20)
+    odc.get_most_recent(days = 30)
     odc.make_features()
     odc.make_lagged_features()
     odc.resample_data(brl = brl)
     odc.make_3_datasets()
+    odc.standardize()
+    odc.save_to_file()
+
     print("All row data downloaded from Oanda for instrument {}".format(instrument))
     print(odc.raw_data.info(),  end="\n  ******** \n")
     print("Re-sampled data for bar length {} from Oanda for instrument {}".format(brl, instrument))
