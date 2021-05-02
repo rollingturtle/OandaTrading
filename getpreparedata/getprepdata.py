@@ -6,6 +6,7 @@ import time
 import logging
 import os
 import os.path
+import pickle
 
 import sys
 sys.path.append('../')
@@ -26,6 +27,30 @@ class OandaDataCollector():
         self.last_bar = None
         self.api_oanda = tpqoa.tpqoa(conf_file)
         self.instrument = instrument
+
+        self.base_data_folder_name = cfg.data_path + str(self.instrument) + "/"
+        self.train_folder = self.base_data_folder_name + "Train/"
+        self.valid_folder = self.base_data_folder_name + "Valid/"
+        self.test_folder = self.base_data_folder_name + "Test/"
+
+        if os.path.exists(self.base_data_folder_name):
+            logging.info("Base folder exists: overwriting files!")
+            # Todo add choice to break out
+        else:
+            logging.info("Non existent Base folder: creating it...")
+            os.mkdir(self.base_data_folder_name)
+            os.mkdir(self.train_folder)
+            os.mkdir(self.valid_folder)
+            os.mkdir(self.test_folder)
+
+        self.train_filename = self.train_folder + "train.csv"
+        self.valid_filename = self.valid_folder + "valid.csv"
+        self.test_filename = self.test_folder + "test.csv"
+
+        self.train_labl_filename = self.train_folder + "trainlabels.csv"
+        self.valid_labl_filename = self.valid_folder + "validlabels.csv"
+        self.test_labl_filename = self.test_folder + "testlabels.csv"
+        return
 
     def get_most_recent(self, granul="S5", days = 2):
         '''
@@ -98,12 +123,13 @@ class OandaDataCollector():
         :param brl: default 1min
         '''
         bar_length = pd.to_timedelta(brl)
-
-        # resampling data at the desired bar length, holding the last value of the bar period (.last())
+        # resampling data at the desired bar length,
+        # holding the last value of the bar period (.last())
         # label right is to set the index to the end of the bar time
+        # dropna is here to remove weekends.
+        # iloc to remove the last bar/row typically incomplete
         self.raw_data_resampled = self.raw_data.resample(bar_length,
                             label = "right").last().dropna().iloc[:-1]
-        # dropna is here to remove weekends. iloc to remove the last bar/row typically incomplete
         return
 
     def make_lagged_features(self, lags=5):
@@ -148,51 +174,34 @@ class OandaDataCollector():
 
         # standardize all of them using training data derived statistics
         self.train_ds_std = (self.train_ds - mu) / std
-        self.validation_ds_std = (self.train_ds - mu) / std
-        self.test_ds_std = (self.train_ds - mu) / std
+        self.validation_ds_std = (self.validation_ds - mu) / std
+        self.test_ds_std = (self.test_ds - mu) / std
+
+        params = {"mu": mu, "std": std}
+        pickle.dump(params, open(self.train_folder  + "params.pkl", "wb"))
+        logging.info('standardize: saving params to file {}'.
+                     format(self.train_folder  + "params.pkl"))
+
         return
 
     def save_to_file(self):
         '''Save the previously formed dataset to disk'''
-        base_data_folder_name = cfg.data_path + str(self.instrument) + "/"
-        train_folder = base_data_folder_name + "Train/"
-        valid_folder = base_data_folder_name + "Valid/"
-        test_folder = base_data_folder_name + "Test/"
 
-        if os.path.exists(base_data_folder_name):
-            logging.info("Base folder exists: overwriting files!")
-            #Todo add choice to break out
-        else:
-            logging.info("Non existent Base folder: creating it...")
-            os.mkdir(base_data_folder_name)
-            os.mkdir(train_folder)
-            os.mkdir(valid_folder)
-            os.mkdir(test_folder)
+        logging.info('Saving data input files to {}'.format(self.base_data_folder_name))
 
-        train_filename = train_folder + "train.csv"
-        valid_filename = valid_folder + "valid.csv"
-        test_filename = test_folder + "test.csv"
+        self.train_ds_std.to_csv(self.train_filename, index = False, header=True)
+        logging.info("Save train_ds to {}".format(self.train_filename))
+        self.validation_ds_std.to_csv(self.valid_filename, index = False, header=True)
+        logging.info("Save valid_ds to {}".format(self.valid_filename))
+        self.test_ds_std.to_csv(self.test_filename, index = False, header=True)
+        logging.info("Save test_ds to {}".format(self.test_filename))
 
-        train_labl_filename = train_folder + "trainlabels.csv"
-        valid_labl_filename = valid_folder + "validlabels.csv"
-        test_labl_filename = test_folder + "testlabels.csv"
-
-        logging.info('Saving data input files to {}'.format(base_data_folder_name))
-
-        self.train_ds_std.to_csv(train_filename, index = False, header=True)
-        logging.info("Save train_ds to {}".format(train_filename))
-        self.validation_ds_std.to_csv(valid_filename, index = False, header=True)
-        logging.info("Save valid_ds to {}".format(valid_filename))
-        self.test_ds_std.to_csv(test_filename, index = False, header=True)
-        logging.info("Save test_ds to {}".format(test_filename))
-
-        logging.info('Saving data label files to {}'.format(base_data_folder_name))
+        logging.info('Saving data label files to {}'.format(self.base_data_folder_name))
 
         labels = ["dir", "profit_over_spread", "loss_over_spread"]
-        self.train_ds[labels].to_csv(train_labl_filename, index = False, header=True)
-        self.validation_ds[labels].to_csv(valid_labl_filename, index = False, header=True)
-        self.test_ds[labels].to_csv(test_labl_filename, index = False, header=True)
-
+        self.train_ds[labels].to_csv(self.train_labl_filename, index = False, header=True)
+        self.validation_ds[labels].to_csv(self.valid_labl_filename, index = False, header=True)
+        self.test_ds[labels].to_csv(self.test_labl_filename, index = False, header=True)
         return
 
 
@@ -204,11 +213,11 @@ if __name__ == '__main__':
     brl = "1min" # bar lenght for resampling
 
     odc = OandaDataCollector(instrument, cfg.conf_file)
-    logging.info('OandaDataCollector object created')
+    logging.info('OandaDataCollector object created for instrument {}'.format(instrument))
 
     # actual data collection of most recent data
     logging.info('OandaDataCollector data collection starts...')
-    odc.get_most_recent(days = 3)
+    odc.get_most_recent(days = 30)
     odc.make_features()
     odc.make_lagged_features()
     odc.resample_data(brl = brl)

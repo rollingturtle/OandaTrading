@@ -27,7 +27,7 @@ optimizer = Adam(lr=0.0001)
 optimz = tf.keras.optimizers.Adam(learning_rate=0.0001)
 
 
-def create_model(hl=2, hu=100, dropout=False, rate=0.3, regularize=False,
+def create_model(hl=2, hu=100, dropout=True, rate=0.3, regularize=False,
                  reg=l1(0.0005), optimizer=optimizer, input_dim=None):
 
     if not regularize:
