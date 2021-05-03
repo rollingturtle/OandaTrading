@@ -41,39 +41,39 @@ class OandaDataCollector():
         self.instrument = instrument
 
         self.base_data_folder_name = cfg.data_path + str(self.instrument) + "/"
-        self.raw_data_file_name = self.base_data_folder_name + "raw_data.xlsx"
-        self.raw_data_resampled_file_name = self.base_data_folder_name + "raw_data_resampled.xlsx"
+        self.raw_data_file_name = self.base_data_folder_name + "raw_data.csv"
+        self.raw_data_resampled_file_name = self.base_data_folder_name + "raw_data_resampled.csv"
         self.train_folder = self.base_data_folder_name + "Train/"
         self.valid_folder = self.base_data_folder_name + "Valid/"
         self.test_folder = self.base_data_folder_name + "Test/"
         if os.path.exists(self.base_data_folder_name):
-            logging.info("__init__: Base folder exists: overwriting files!")
-            # Todo add choice to break out
+            logging.info("__init__: Base folder exists: we may be overwriting existing files!")
+            # Todo add choice to break out?
         else:
             logging.info("__init__: Non existent Base folder: creating it...")
             os.mkdir(self.base_data_folder_name)
             os.mkdir(self.train_folder)
             os.mkdir(self.valid_folder)
             os.mkdir(self.test_folder)
-        self.train_filename = self.train_folder + "train.xlsx"
-        self.valid_filename = self.valid_folder + "valid.xlsx"
-        self.test_filename = self.test_folder + "test.xlsx"
-        self.train_labl_filename = self.train_folder + "trainlabels.xlsx"
-        self.valid_labl_filename = self.valid_folder + "validlabels.xlsx"
-        self.test_labl_filename = self.test_folder + "testlabels.xlsx"
+        self.train_filename = self.train_folder + "train.csv"
+        self.valid_filename = self.valid_folder + "valid.csv"
+        self.test_filename = self.test_folder + "test.csv"
+        self.train_labl_filename = self.train_folder + "trainlabels.csv"
+        self.valid_labl_filename = self.valid_folder + "validlabels.csv"
+        self.test_labl_filename = self.test_folder + "testlabels.csv"
         return
 
     def load_data_from_file(self):
         '''load raw data and process data from file'''
 
         # raw data
-        self.raw_data = pd.read_excel(self.raw_data_file_name, index_col=None,header=0, engine='openpyxl')
-        self.raw_data_resampled = pd.read_excel(self.raw_data_resampled_file_name , index_col=None, header=0, engine='openpyxl')
+        self.raw_data = pd.read_csv(self.raw_data_file_name, index_col=None,header=0, engine='openpyxl')
+        self.raw_data_resampled = pd.read_csv(self.raw_data_resampled_file_name , index_col=None, header=0, engine='openpyxl')
 
         # loading 3 datasets, standardized, which contains also the columns for labels
-        self.train_ds_std = pd.read_excel(self.train_filename, index_col=None, header=0, engine='openpyxl')
-        self.validation_ds_std = pd.read_excel(self.valid_filename, index_col=None, header=0, engine='openpyxl')
-        self.test_ds_std = pd.read_excel(self.test_filename, index_col=None,header=0, engine='openpyxl')
+        self.train_ds_std = pd.read_csv(self.train_filename, index_col=None, header=0, engine='openpyxl')
+        self.validation_ds_std = pd.read_csv(self.valid_filename, index_col=None, header=0, engine='openpyxl')
+        self.test_ds_std = pd.read_csv(self.test_filename, index_col=None,header=0, engine='openpyxl')
 
         self.params = pickle.load(open(self.train_folder  + "params.pkl", "rb"))
 
@@ -233,8 +233,8 @@ class OandaDataCollector():
 
     def save_to_file(self):
         '''Save the previously formed datasets to disk'''
-        self.raw_data_file_name = self.base_data_folder_name + "raw_data.xlsx"
-        self.raw_data_resampled_file_name = self.base_data_folder_name + "raw_data_resampled.xlsx"
+        self.raw_data_file_name = self.base_data_folder_name + "raw_data.csv"
+        self.raw_data_resampled_file_name = self.base_data_folder_name + "raw_data_resampled.csv"
         logging.info("save_to_file: Saving raw data and resampled raw data to {} and to {}".format(
             self.raw_data_file_name,
             self.raw_data_resampled_file_name))
@@ -243,21 +243,21 @@ class OandaDataCollector():
         # make the lagged versions of all of them and then resample to get the frequency
         # so in order to get the new feature, I need resampling to work on the data I saved previously
         # therefore I need to save here the index, so resampling has the reference values...
-        self.raw_data.to_excel(self.raw_data_file_name, index = False, header=True)
-        self.raw_data_resampled.to_excel(self.raw_data_resampled_file_name, index = False, header=True)
+        self.raw_data.to_csv(self.raw_data_file_name, index = False, header=True)
+        self.raw_data_resampled.to_csv(self.raw_data_resampled_file_name, index = False, header=True)
 
         logging.info('save_to_file: Saving data input files to {}'.format(self.base_data_folder_name))
-        self.train_ds_std.to_excel(self.train_filename, index = False, header=True)
+        self.train_ds_std.to_csv(self.train_filename, index = False, header=True)
         logging.info("save_to_file: Save train_ds to {}".format(self.train_filename))
-        self.validation_ds_std.to_excel(self.valid_filename, index = False, header=True)
+        self.validation_ds_std.to_csv(self.valid_filename, index = False, header=True)
         logging.info("save_to_file: Save valid_ds to {}".format(self.valid_filename))
-        self.test_ds_std.to_excel(self.test_filename, index = False, header=True)
+        self.test_ds_std.to_csv(self.test_filename, index = False, header=True)
         logging.info("save_to_file: Save test_ds to {}".format(self.test_filename))
 
         logging.info('save_to_file: saving data label files to {}'.format(self.base_data_folder_name))
-        self.train_ds[self.labels].to_excel(self.train_labl_filename, index = False, header=True)
-        self.validation_ds[self.labels].to_excel(self.valid_labl_filename, index = False, header=True)
-        self.test_ds[self.labels].to_excel(self.test_labl_filename, index = False, header=True)
+        self.train_ds[self.labels].to_csv(self.train_labl_filename, index = False, header=True)
+        self.validation_ds[self.labels].to_csv(self.valid_labl_filename, index = False, header=True)
+        self.test_ds[self.labels].to_csv(self.test_labl_filename, index = False, header=True)
 
         logging.info('save_to_file: saving params to file {}'.format(self.train_folder  + "params.pkl"))
         pickle.dump(self.params, open(self.train_folder  + "params.pkl", "wb"))
@@ -275,11 +275,11 @@ if __name__ == '__main__':
     print('OandaDataCollector object created for instrument {}'.format(instrument))
 
 
-    NEW_DATA = False
+    NEW_DATA = True
     if NEW_DATA:
         # actual data collection of most recent data
         print('OandaDataCollector data collection starts...')
-        odc.get_most_recent(days = 10)
+        odc.get_most_recent(days = 20)
         odc.make_features()
         odc.make_lagged_features()
         odc.resample_data(brl = brl)
