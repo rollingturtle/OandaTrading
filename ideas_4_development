@@ -1,0 +1,34 @@
+03.05.2021
+- add more tasks to DNN, add loss function components and optimize the overall loss
+
+- complete the chain adding the trading part. Start simple with loading the pretrained model, streaming live
+data and setting orders based on the model output(s). See trader.py? o meglio DNNtrader.py
+
+- data: make getpreparedata able to work on raw data saved on disk.
+it should be possible to add new features, resample, generate new train,eval,test datasets
+in order to do that, I must save the index timedata to csv and load it correclty at a later time
+so I can resample it taking into consideration the timeindex
+
+
+- implement architecture based on autoencoding a 2d input, initially fixed to white sheet (all 0).
+The autoencoder concatenates a representation of the input at time t_(-n) and generate an output
+This output is then added to the original input via skip connection and layer normalized (so not to diverge)
+This is repeated as many time as the input sequence in long. The final 2D tensor is fed into a conv net to
+classify it for many tasks (market direction, increase of close price beyond a threshold, or a a decrease
+below a threshold.
+
+         .........................................
+
+        |        |||  ===>concat<===     ||
+        |       |||||                   |||||
+        |    ||||||||||||             |||||||||
+        |_____ L1 2D               t_(-n+1) inputs
+|-----------  +O+
+|                |
+|            ||||||||
+|             ||||||
+|       || ===>concat<===||
+|     |||||            |||||
+|  ||||||||||||      |||||||||
+|    ___|
+L0=0 2D             t_(-n) inputs
