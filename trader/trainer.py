@@ -27,32 +27,43 @@ test_folder = base_data_folder_name + "Test/"
 
 assert os.path.exists(base_data_folder_name), "Base data folder DO NOT exists!"
 
-train_filename = train_folder + "train.csv"
-valid_filename = valid_folder + "valid.csv"
-test_filename = test_folder + "test.csv"
-train_labl_filename = train_folder + "trainlabels.csv"
-valid_labl_filename = valid_folder + "validlabels.csv"
-test_labl_filename = test_folder + "testlabels.csv"
+train_filename = train_folder + "train.xlsx"
+valid_filename = valid_folder + "valid.xlsx"
+test_filename = test_folder + "test.xlsx"
+train_labl_filename = train_folder + "trainlabels.xlsx"
+valid_labl_filename = valid_folder + "validlabels.xlsx"
+test_labl_filename = test_folder + "testlabels.xlsx"
 
-train_data = pd.read_csv(train_filename) #, parse_dates = ["time"], index_col = "time")
-test_data = pd.read_csv(test_filename) #, parse_dates = ["time"], index_col = "time")
-train_labels = pd.read_csv(train_labl_filename) #, parse_dates = ["time"], index_col = "time")
-test_labels = pd.read_csv(test_labl_filename) #, parse_dates = ["time"], index_col = "time")
+train_data = pd.read_excel(train_filename, index_col=None,
+                           header=0, engine='openpyxl') #, parse_dates = ["time"], index_col = "time")
+test_data = pd.read_excel(test_filename, index_col=None,
+                          header=0, engine='openpyxl') #, parse_dates = ["time"], index_col = "time")
+train_labels = pd.read_excel(train_labl_filename,index_col=None,
+                             header=0, engine='openpyxl') #, parse_dates = ["time"], index_col = "time")
+test_labels = pd.read_excel(test_labl_filename, index_col=None,
+                            header=0, engine='openpyxl') #, parse_dates = ["time"], index_col = "time")
 
 
 all_cols = train_data.columns
 cols = []
 #features = ["dir", "sma", "boll", "min", "max", "mom", "vol"]
 for col in all_cols:
-    if 'lag' in col:
+    if 'lag' in col and "boll" not in col:
         cols.append(col)
+
+print(train_data[cols].isnull().values.any() , train_labels["dir"].isnull().values.any())
 
 logging.info("Creating the NN model...")
 model = create_model(dropout = True, input_dim = len(cols)) # hl = 3, hu = 50,
-
+#model = create_better_model(dropout = False, input_dim = len(cols))
 logging.info("Training the NN model...")
-model.fit(x = train_data[cols], y = train_labels["dir"], epochs = 50, verbose = True,
-          validation_split = 0.2, shuffle = False, class_weight = cw(train_labels))
+model.fit(x = train_data[cols],
+          y = train_labels["dir"],
+          epochs = 50,
+          verbose = True,
+          validation_split = 0.2,
+          shuffle = False,
+          class_weight = cw(train_labels))
 
 print("\n")
 time.sleep(2)
@@ -65,4 +76,4 @@ logging.info("Evaluating the model on out-of-sample data (test data)")
 model.evaluate(test_data[cols], test_labels["dir"])
 
 # Todo: save the model once trained to reuse it without training
-model.save("DNN_model.h5")
+model.save(cfg.proj_path + "/TrainedModels/" + "DNN_model.h5")

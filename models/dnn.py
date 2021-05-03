@@ -20,6 +20,7 @@ def cw(df):
     c0, c1 = np.bincount(df["dir"])
     w0 = (1 / c0) * (len(df)) / 2
     w1 = (1 / c1) * (len(df)) / 2
+    print("cw: using class 0 weight {}, class 1 weight {}".format(w0,w1))
     return {0: w0, 1: w1}
 
 
@@ -27,25 +28,25 @@ optimizer = Adam(lr=0.0001)
 optimz = tf.keras.optimizers.Adam(learning_rate=0.0001)
 
 
-def create_model(hl=2, hu=100, dropout=True, rate=0.3, regularize=False,
-                 reg=l1(0.0005), optimizer=optimizer, input_dim=None):
+def create_model(hu_list=(64, 32, 16), dropout=False, rate=0.3, regularize=True,
+                 reg=l2(0.0005), optimizer=optimizer, input_dim=None): #l2(0.0005)
 
     if not regularize:
         reg = None
 
     model = Sequential()
 
-    model.add(Dense(hu, input_dim=input_dim, activity_regularizer=reg)) #, activation="relu"))
+    model.add(Dense(hu_list[0], input_dim=input_dim, activity_regularizer=reg, activation="relu"))
     if dropout:
         model.add(Dropout(rate, seed=100))
     # now add a ReLU layer explicitly:
-    model.add(LeakyReLU(alpha=0.05))
+    #model.add(LeakyReLU(alpha=0.05))
 
-    for layer in range(hl):
-        model.add(Dense(hu,  activity_regularizer=reg)) # activation="relu",
+    for layer_dim in hu_list[1:]:
+        model.add(Dense(layer_dim,  activity_regularizer=reg, activation="relu"))
         if dropout:
             model.add(Dropout(rate, seed=100))
-        model.add(LeakyReLU(alpha=0.05))
+        #model.add(LeakyReLU(alpha=0.05))
 
     model.add(Dense(1, activation="sigmoid"))
 

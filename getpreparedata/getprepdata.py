@@ -43,13 +43,13 @@ class OandaDataCollector():
             os.mkdir(self.valid_folder)
             os.mkdir(self.test_folder)
 
-        self.train_filename = self.train_folder + "train.csv"
-        self.valid_filename = self.valid_folder + "valid.csv"
-        self.test_filename = self.test_folder + "test.csv"
+        self.train_filename = self.train_folder + "train.xlsx"
+        self.valid_filename = self.valid_folder + "valid.xlsx"
+        self.test_filename = self.test_folder + "test.xlsx"
 
-        self.train_labl_filename = self.train_folder + "trainlabels.csv"
-        self.valid_labl_filename = self.valid_folder + "validlabels.csv"
-        self.test_labl_filename = self.test_folder + "testlabels.csv"
+        self.train_labl_filename = self.train_folder + "trainlabels.xlsx"
+        self.valid_labl_filename = self.valid_folder + "validlabels.xlsx"
+        self.test_labl_filename = self.test_folder + "testlabels.xlsx"
         return
 
     def get_most_recent(self, granul="S5", days = 2):
@@ -189,19 +189,19 @@ class OandaDataCollector():
 
         logging.info('Saving data input files to {}'.format(self.base_data_folder_name))
 
-        self.train_ds_std.to_csv(self.train_filename, index = False, header=True)
+        self.train_ds_std.to_excel(self.train_filename, index = False, header=True)
         logging.info("Save train_ds to {}".format(self.train_filename))
-        self.validation_ds_std.to_csv(self.valid_filename, index = False, header=True)
+        self.validation_ds_std.to_excel(self.valid_filename, index = False, header=True)
         logging.info("Save valid_ds to {}".format(self.valid_filename))
-        self.test_ds_std.to_csv(self.test_filename, index = False, header=True)
+        self.test_ds_std.to_excel(self.test_filename, index = False, header=True)
         logging.info("Save test_ds to {}".format(self.test_filename))
 
         logging.info('Saving data label files to {}'.format(self.base_data_folder_name))
 
         labels = ["dir", "profit_over_spread", "loss_over_spread"]
-        self.train_ds[labels].to_csv(self.train_labl_filename, index = False, header=True)
-        self.validation_ds[labels].to_csv(self.valid_labl_filename, index = False, header=True)
-        self.test_ds[labels].to_csv(self.test_labl_filename, index = False, header=True)
+        self.train_ds[labels].to_excel(self.train_labl_filename, index = False, header=True)
+        self.validation_ds[labels].to_excel(self.valid_labl_filename, index = False, header=True)
+        self.test_ds[labels].to_excel(self.test_labl_filename, index = False, header=True)
         return
 
 
