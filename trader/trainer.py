@@ -46,7 +46,6 @@ test_labels = pd.read_excel(test_labl_filename, index_col=None,
 
 all_cols = train_data.columns
 cols = []
-#features = ["dir", "sma", "boll", "min", "max", "mom", "vol"]
 for col in all_cols:
     if 'lag' in col and "boll" not in col:
         cols.append(col)
@@ -54,12 +53,12 @@ for col in all_cols:
 print(train_data[cols].isnull().values.any() , train_labels["dir"].isnull().values.any())
 
 logging.info("Creating the NN model...")
-model = create_model(dropout = True, input_dim = len(cols)) # hl = 3, hu = 50,
+model = create_model(dropout = True, input_dim = len(cols))
 #model = create_better_model(dropout = False, input_dim = len(cols))
 logging.info("Training the NN model...")
 model.fit(x = train_data[cols],
           y = train_labels["dir"],
-          epochs = 50,
+          epochs = 80,
           verbose = True,
           validation_split = 0.2,
           shuffle = False,
@@ -70,9 +69,8 @@ time.sleep(2)
 logging.info("Evaluating the model on in-sample data (training data)")
 model.evaluate(train_data[cols], train_labels["dir"]) # evaluate the fit on the train set
 # pred = model.predict(train_data[cols])
-print("\n")
 
-logging.info("Evaluating the model on out-of-sample data (test data)")
+logging.info("\nEvaluating the model on out-of-sample data (test data)")
 model.evaluate(test_data[cols], test_labels["dir"])
 
 # Todo: save the model once trained to reuse it without training
