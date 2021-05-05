@@ -6,6 +6,9 @@ __pycache__/
 *$py.class
 *.pyc
 
+configs/oanda.cfg
+configs/oanda_cfg.backup
+
 # C extensions
 *.so
 
