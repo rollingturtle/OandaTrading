@@ -14,9 +14,6 @@ from common import utils as u
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-# change this import pointing to the wanted/needed configuration for the main to work
-import configs.EUR_USD_1 as cfginst
-
 set_seeds(100)
 
 
@@ -65,10 +62,6 @@ class DNNTrader(tpqoa.tpqoa):
         now = now - timedelta(microseconds=now.microsecond)
         past = now - timedelta(days=days)
 
-        # # Todo review why price M is not supported here!!
-        # df = self.get_history(instrument=self.instrument, start=past, end=now,
-        #                       granularity=granul, price="B").c.dropna().to_frame() #price="M" raise ValueError("price must be either 'B' or 'A'.")
-        # df.rename(columns={"c": self.instrument}, inplace=True)
         # # Todo: why issues here?
         # #df.index = df.index.tz_localize("UTC") #TypeError: Already tz-aware, use tz_convert to convert.
 
@@ -81,6 +74,8 @@ class DNNTrader(tpqoa.tpqoa):
             price = "M",
             localize=False).c.dropna().to_frame()
         df.rename(columns={"c": self.instrument}, inplace=True)
+
+        print("\nhistory dataframe information:\n")
         df.info()
 
         logging.info("get_most_recent: resampling recent history to chosen bar length in line" +
@@ -88,11 +83,14 @@ class DNNTrader(tpqoa.tpqoa):
         df = df.resample(self.bar_length, label="right").last().dropna().iloc[:-1]
         self.hist_data = df.copy()
         self.min_length = len(self.hist_data) + 1
+
+        print("\nresampled history dataframe information:\n")
         df.info()
+
         return
 
     def resample_and_join(self):
-        print("SEQUENCE: resample_and_join")
+        print("\nSEQUENCE: resample_and_join")
         self.raw_data = self.hist_data.append(
                             self.tick_data.resample(self.bar_length,
                                     label="right").last().ffill().iloc[:-1])
@@ -102,25 +100,16 @@ class DNNTrader(tpqoa.tpqoa):
     def prepare_data(self):
         print("SEQUENCE: prepare_data")
 
-        #print("self.raw_data.head():\n  ",self.raw_data.head())
         # create features
         df = self.raw_data.reset_index(drop=True, inplace=False)
-        #print("df = self.raw_data.copy(): \n", df.info)
-        #self.raw_data \
         df = u.make_features(df,
                             self.sma_int,
                             self.window,
                             self.hspread_ptc,
                             ref_price = self.instrument )
 
-        #self.data = u.make_lagged_features(self.raw_data, self.features, self.lags)
-        #print("u.make_features(df,..:\n",df.info)
         df = u.make_lagged_features(df, self.features, self.lags)
-        #print("u.make_lagged_features(df,: \n",df.info)
         self.data = df.copy()
-        #print(self.data.info)
-
-        #print("prepare_data: ", self.data.columns)
         return
 
     def predict(self):
@@ -128,22 +117,22 @@ class DNNTrader(tpqoa.tpqoa):
 
         df = self.data.copy()
         df_s = (df - self.mu) / self.std
-        #print("predict: ", self.features)
+
 
         all_cols = self.data.columns
         lagged_cols = []
         for col in all_cols:
             if 'lag' in col:
                 lagged_cols.append(col)
-        #print("predict: ", lagged_cols)
-        #print(self.data.head())
 
         df["proba"] = self.model.predict(df_s[lagged_cols])
+
         self.data = df.copy()
+        return
+
 
     def on_success(self, time, bid, ask):
         print("SEQUENCE: on_success")
-        #print("time, bid, ask", time, bid, ask)
 
         print(self.ticks, end=" ")
 
@@ -192,7 +181,7 @@ class DNNTrader(tpqoa.tpqoa):
         print(order)
         time = order["time"]
         units = order["units"]
-        # Todo: review this workaround to make it run as price and pl keys are missing
+        # Todo: review this workaround to make it run as price and pl keys are missing sometimes
         print("order.keys(): ", order.keys())
         if "price" in order.keys():
             price = order["price"]
@@ -206,7 +195,10 @@ class DNNTrader(tpqoa.tpqoa):
 
 
 if __name__ == "__main__":
-    import configs.EUR_USD_1 as eu
+
+    # change this import pointing to the wanted/needed configuration for the main to work
+    import configs.EUR_USD_1 as cfginst
+
     base_data_folder_name = cfg.data_path + str(cfginst.instrument) + "/"
     train_folder = base_data_folder_name + "Train/"
     valid_folder = base_data_folder_name + "Valid/"
@@ -223,17 +215,18 @@ if __name__ == "__main__":
                        bar_length=cfginst.brl,
                        window=cfginst.window,
                        lags=cfginst.lags,
-                       units=100000,
+                       units=cfginst.units,
                        model=model,
                        mu=mu, std=std,
                        hspread_ptc=cfginst.hspread_ptc,
                        sma_int=cfginst.sma_int,
                        features=cfginst.features,
-                       h_prob_th=eu.higher_go_long,
-                       l_prob_th=eu.lower_go_short)
+                       h_prob_th=cfginst.higher_go_long,
+                       l_prob_th=cfginst.lower_go_short)
 
     trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data
-    logging.info("main: most recent historical data obtained and resampled, now starting streaming data and trading...")
+    logging.info("main: most recent historical data obtained and resampled" +
+                 "now starting streaming data and trading...")
     trader.stream_data(cfginst.instrument, stop=cfginst.stop_trading)  # streaming & trading here!!!!
 
     if trader.position != 0:

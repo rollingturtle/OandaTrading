@@ -1,8 +1,15 @@
 03.05.2021
-- add more tasks to DNN, add loss function components and optimize the overall loss
 
+DONE:
 - complete the chain adding the trading part. Start simple with loading the pretrained model, streaming live
 data and setting orders based on the model output(s). See trader.py? o meglio DNNtrader.py
+
+- move the project to juniper notebooks to visualize, still remaing as pycharm project
+as jpnb: trader_ml.py, trainer.py, getpreparedata.py
+
+- prepare real backtesting with graphical visualization of the model behaviour on a long period
+
+- add more tasks to DNN, add loss function components and optimize the overall loss
 
 - data: make getpreparedata able to work on raw data saved on disk.
 it should be possible to add new features, resample, generate new train,eval,test datasets

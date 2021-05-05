@@ -12,13 +12,15 @@ features = ["dir", "sma", "boll", "min", "max", "mom", "vol",
                  "profit_over_spread", "loss_over_spread"]
 
 granul="S5"
-days = 20#20
+days = 20
 days_inference = 3
 lags = 5
 split_pcs = (0.7, 0.15, 0.15)
 stop_trading = 300
 
 #trading thresholds for probability
-lower_go_short = 0.4999 #0.47
+lower_go_short = 0.47
 higher_go_long = 0.53
 
+# bulk trade
+units = 1000

@@ -28,29 +28,32 @@ optimizer = Adam(lr=0.0001)
 optimz = tf.keras.optimizers.Adam(learning_rate=0.0001)
 
 
-def create_model(hu_list=(128, 32, 16), dropout=False, rate=0.2, regularize=True,
-                 reg=l1(0.0005), optimizer=optimizer, input_dim=None): #l1(0.0005)
+
+def dnn1(hu_list=(128, 32, 16),
+         dropout=False,
+         rate=0.2,
+         regularize=True,
+         reg=l2(0.0005),  #l1(0.0005)
+                 optimizer=optimizer,
+         input_dim=None):
 
     if not regularize:
         reg = None
 
     model = Sequential()
-
     model.add(Dense(hu_list[0], input_dim=input_dim, activity_regularizer=reg)) #, activation="relu"))
     if dropout:
         model.add(Dropout(rate, seed=100))
-    # now add a ReLU layer explicitly:
     model.add(LeakyReLU(alpha=0.05))
 
     for layer_dim in hu_list[1:]:
-        model.add(Dense(layer_dim,  activity_regularizer=reg)) #, activation="relu"))
+        model.add(Dense(layer_dim,  activity_regularizer=reg, activation="relu"))
         if dropout:
             model.add(Dropout(rate, seed=100))
-        model.add(LeakyReLU(alpha=0.05))
+        #model.add(LeakyReLU(alpha=0.05))
 
     model.add(Dense(1, activation="sigmoid"))
-
-    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=["accuracy"])
+    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
     return model
 
 
@@ -61,7 +64,6 @@ def create_better_model(hu_list=[64, 32, 16],
                         reg=l1(0.0005),
                         optimizer=optimizer,
                         input_dim=None):
-    hl = len(hu_list)
 
     if not regularize:
         reg = None
@@ -83,5 +85,5 @@ def create_better_model(hu_list=[64, 32, 16],
     # Final binary output
     model.add(tf.keras.layers.Dense(1, activation="sigmoid"))
 
-    model.compile(loss="binary_crossentropy", optimizer=optimz, metrics=["accuracy"])
+    model.compile(loss="binary_crossentropy", optimizer=optimz, metrics=['acc'])
     return model
