@@ -12,6 +12,9 @@ import configs.config as cfg
 from common import utils as u
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
+from  strategies.strategies import Strategy_1
+
+from functools import partial
 
 set_seeds(100)
 
@@ -54,6 +57,12 @@ class DNNTrader(tpqoa.tpqoa):
         self.features = features
         self.h_prob_th = h_prob_th
         self.l_prob_th = l_prob_th
+
+        self.strategy = Strategy_1(instrument=self.instrument,
+                                   order_fun= self.create_order, #partial(self.create_order,
+                                                #      self.instrument, suppress=True, ret=True),
+                                    report_fun= self.report_trade,
+                                    live_or_test="live")
 
     def get_most_recent(self, days=5, granul="S5"):
         print("SEQUENCE: get_most_recent")
@@ -154,27 +163,37 @@ class DNNTrader(tpqoa.tpqoa):
             # here we apply a strategy based on the probabilities. Many strategies are possible
             # Todo: externalize the strategy and make this class support historical data, for backtesting purposes
 
-            if self.position == 0:
-                if self.data["proba"].iloc[-1] > self.h_prob_th: #. 0.53:
-                    order = self.create_order(self.instrument, self.units, suppress=True, ret=True)
-                    self.report_trade(order, "GOING LONG")
-                    self.position = 1
-                elif self.data["proba"].iloc[-1] < self.l_prob_th: # 0.47:
-                    order = self.create_order(self.instrument, -self.units, suppress=True, ret=True)
-                    self.report_trade(order, "GOING SHORT")
-                    self.position = -1
+            # from functool import partial
+            self.position = self.strategy.act(
+                       position=self.position,
+                       prob_up=self.data["proba"].iloc[-1],
+                       thr_up=self.h_prob_th,
+                       thr_low=self.l_prob_th,
+                       units = self.units)
 
-            elif self.position == -1:
-                if self.data["proba"].iloc[-1] > self.h_prob_th: #0.53:
-                    order = self.create_order(self.instrument, self.units * 2, suppress=True, ret=True)
-                    self.report_trade(order, "GOING LONG")
-                    self.position = 1
-
-            elif self.position == 1:
-                if self.data["proba"].iloc[-1] < self.l_prob_th: #0.47:
-                    order = self.create_order(self.instrument, -self.units * 2, suppress=True, ret=True)
-                    self.report_trade(order, "GOING SHORT")
-                    self.position = -1
+            #   better idea is to instantiate a strategy object, init with order_fun, report_fun
+            # mode live_or_test, and leave other params for the act call
+            # if self.position == 0:
+            #     if self.data["proba"].iloc[-1] > self.h_prob_th: #. 0.53:
+            #         order = self.create_order(self.instrument, self.units, suppress=True, ret=True)
+            #         self.report_trade(order, "GOING LONG")
+            #         self.position = 1
+            #     elif self.data["proba"].iloc[-1] < self.l_prob_th: # 0.47:
+            #         order = self.create_order(self.instrument, -self.units, suppress=True, ret=True)
+            #         self.report_trade(order, "GOING SHORT")
+            #         self.position = -1
+            #
+            # elif self.position == -1:
+            #     if self.data["proba"].iloc[-1] > self.h_prob_th: #0.53:
+            #         order = self.create_order(self.instrument, self.units * 2, suppress=True, ret=True)
+            #         self.report_trade(order, "GOING LONG")
+            #         self.position = 1
+            #
+            # elif self.position == 1:
+            #     if self.data["proba"].iloc[-1] < self.l_prob_th: #0.47:
+            #         order = self.create_order(self.instrument, -self.units * 2, suppress=True, ret=True)
+            #         self.report_trade(order, "GOING SHORT")
+            #         self.position = -1
         return
 
     def report_trade(self, order, going):
