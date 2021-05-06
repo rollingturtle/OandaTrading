@@ -1,6 +1,6 @@
 # OandaTrading
 Tools to operate with Oanda using Machine Learning. It requires a personal `oanda.cfg` file under `configs` folder that is used to authenticate to the oanda service https://trade.oanda.com/
-Currently, tools can be divided in 4 categories: 
+Currently, tools can be divided in 3 categories: 
 
 1. getting and preparing the data: download historical data, make features, make lagged features, prepare datasets
 1. train a model: take a model defined under models, train a model, save the trained model under trained models
