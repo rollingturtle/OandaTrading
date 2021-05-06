@@ -1,7 +1,5 @@
-import os
+# configuration parameters that are not related to specific instrument
 import logging
-
-# configuration parameters that are not related to specific instrument being considered
 
 proj_path = "/Users/ANDREA/PycharmProjects/OandaTrading/"
 config_path = proj_path + "configs/"

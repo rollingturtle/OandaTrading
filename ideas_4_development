@@ -7,7 +7,10 @@ data and setting orders based on the model output(s). See trader.py? o meglio DN
 - move the project to juniper notebooks to visualize, still remaing as pycharm project
 as jpnb: trader_ml.py, trainer.py, getpreparedata.py
 
-- prepare real backtesting with graphical visualization of the model behaviour on a long period
+- prepare real backtesting of the DNNTrader class, which indeed includes a strategy that we
+want to backtest with graphical visualization of the model behaviour on a long period
+
+- add trading costs!!!!
 
 - add more tasks to DNN, add loss function components and optimize the overall loss
 

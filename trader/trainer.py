@@ -1,19 +1,20 @@
 import pandas as pd
 import logging
 import sys
-sys.path.append('../')
-import configs.config as cfg
-
-from models.dnn import *
-
 import os
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+sys.path.append('../')
+
+import configs.config as cfg
+from models.dnn import *
 import configs.EUR_USD_1 as eu
 
 
 set_seeds(100)
 
+
+# todo: move these definitions to the instrument related config file
 instrument = eu.instrument
 
 #loading data
@@ -31,14 +32,14 @@ train_labl_filename = train_folder + "trainlabels.csv"
 valid_labl_filename = valid_folder + "validlabels.csv"
 test_labl_filename = test_folder + "testlabels.csv"
 
-#, engine='openpyxl') #, parse_dates = ["time"], index_col = "time")
 train_data = pd.read_csv(train_filename, index_col=None, header=0)
 test_data = pd.read_csv(test_filename, index_col=None, header=0)
-#valid not used for now, using keras support but that uses std and mean computed on the train+valid data
+# valid not used for now, using keras support but that uses
+# std and mean computed on the train+valid data
 train_labels = pd.read_csv(train_labl_filename,index_col=None, header=0)
 test_labels = pd.read_csv(test_labl_filename, index_col=None, header=0)
 
-
+# exctract relevant columns for training (features!)
 all_cols = train_data.columns
 lagged_cols = []
 for col in all_cols:
@@ -51,15 +52,17 @@ print("how many Lagged columns:")
 print(len(lagged_cols))
 print(train_data.head())
 
-print("TEST if there ar NANs in data or labels")
-print("NANs in DATA: ", train_data[lagged_cols].isnull().values.any(),
-      "\nNANs in LABELS: ", train_labels["dir"].isnull().values.any())
+# print("TEST if there ar NANs in data or labels")
+# print("NANs in DATA: ", train_data[lagged_cols].isnull().values.any(),
+#       "\nNANs in LABELS: ", train_labels["dir"].isnull().values.any())
+
+assert train_data[lagged_cols].isnull().values.any() is False, "NANs in Training Data"
+assert train_labels["dir"].isnull().values.any() is False, "NANs in LABELS"
 
 logging.info("Creating the NN model...")
 model = dnn1(dropout = True,
              rate=0.1,
              input_dim = len(lagged_cols))
-#model = create_better_model(dropout = False, input_dim = len(cols))
 
 logging.info("Training the NN model...")
 model.fit(x = train_data[lagged_cols],
@@ -85,6 +88,6 @@ print(pred)
 print("main: valuating the model on out-of-sample data (test data)")
 model.evaluate(test_data[lagged_cols], test_labels["dir"], verbose=True)
 
-# Todo: save the model once trained to reuse it without training
+# Todo: save the model under folder for specific configuration (See conf_name under EUR_USD_1.py)
 model.save(cfg.proj_path + "/TrainedModels/" + instrument +"/DNN_model.h5")
 print("main:Trained model save to " + cfg.proj_path + "/TrainedModels/" + instrument +"/DNN_model.h5")

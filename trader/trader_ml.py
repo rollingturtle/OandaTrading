@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import tpqoa
 import pickle
 from datetime import datetime, timedelta
@@ -192,6 +191,7 @@ class DNNTrader(tpqoa.tpqoa):
             print("{} | {}".format(time, going))
             print("{} | units = {} | price = {} | P&L = {} | Cum P&L = {}".format(time, units, price, pl, cumpl))
             print(100 * "-" + "\n")
+
 
 
 if __name__ == "__main__":

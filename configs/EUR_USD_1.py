@@ -1,5 +1,9 @@
-# numeric params (not derived by data) that must be common among the
-# data collection phase and the actual inference/trading moment
+# configuration file for a specific case:
+# case: instrument, features, various numeric parameters used to create features
+# for each case, we store numeric params (not derived by data)
+# this data must be shared between the training phase and the trading time
+# for the same kind of features must be computed at trading time
+# for the ML model to work
 
 instrument = "EUR_USD"
 conf_name = instrument + "_1"
