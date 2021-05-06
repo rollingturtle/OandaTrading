@@ -151,6 +151,9 @@ class DNNTrader(tpqoa.tpqoa):
             print("on_success: predicted probabilty for next bar is ", self.data["proba"].iloc[-1])
             # orders and trades
 
+            # here we apply a strategy based on the probabilities. Many strategies are possible
+            # Todo: externalize the strategy and make this class support historical data, for backtesting purposes
+
             if self.position == 0:
                 if self.data["proba"].iloc[-1] > self.h_prob_th: #. 0.53:
                     order = self.create_order(self.instrument, self.units, suppress=True, ret=True)
