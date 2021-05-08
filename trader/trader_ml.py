@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 from models.dnn import set_seeds
 import keras
 import logging
+import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 import sys
 sys.path.append('../')
@@ -64,7 +68,74 @@ class DNNTrader(tpqoa.tpqoa):
                                     report_fun= self.report_trade,
                                     live_or_test="live")
 
+    def fwtest(self, data, labels):
+        pass
+
+    def backtest(self, data, labels):
+        '''
+        test the (model,strategy) pair on the passed, and compare the buy&hold with
+        the chosen strategy. Ideally estimation of trading costs should be included
+        '''
+        test_outs = pd.DataFrame()
+        self.data = data.copy()
+        test_outs["pred"] = self.predict(TESTING=True)
+
+        # calculate Strategy Returns: I need access to returns here!!!
+        # but likely the returns I have access here are normalized..
+        # Todo: review how to grant access to returns here, and see if access to normalized is doable
+        test_outs["strategy"] = test_outs["pred"] * data["returns"]
+
+        # determine when a trade takes place
+        test_outs["trades"] = test_outs["pred"].diff().fillna(0).abs()
+
+        # subtract transaction costs from return when trade takes place
+        test_outs.strategy = test_outs.strategy - test_outs.trades * self.hspread_ptc
+
+        # calculate cumulative returns for strategy & buy and hold
+        test_outs["creturns"] = data["returns"].cumsum().apply(np.exp)
+        test_outs["cstrategy"] = test_outs['strategy'].cumsum().apply(np.exp)
+        results = test_outs
+
+        # absolute performance of the strategy
+        perf = results["cstrategy"].iloc[-1]
+        # out-/underperformance of strategy
+        outperf = perf - results["creturns"].iloc[-1]
+
+        # plot results
+        print("plotting cumulative results of buy&hold and strategys")
+        title = "{} | TC = {}".format(self.instrument, self.hspread_ptc)
+
+        plt.figure()
+        results[["cstrategy"]].plot(title=title, figsize=(12, 8)) #,  "creturns"
+        plt.show
+
+        plt.figure()
+
+        plt.plot([i for i in range(10)])
+        plt.show()
+
+        return round(perf, 6), round(outperf, 6)
+        # load passed data and visualize it
+        # from passed data, resample if necessary,
+        # create features and lagged features using other class methods possibly (preparedata)
+        # if backtest, in-sample/out-sample is done on training/test data, as it probably should be, lagged features
+        # are already available!
+        # initial position is 0
+        # for t over data:
+        #   make prediction on t using lagged features from data
+        #   use prediction to feed strategy
+        #  if any change of position, update cum P&L, considering trading costs
+        # visualize plot buy&hold vs strategy (w/o trading costs)
+        # no the position for each time step, as predicted, does not depend on the previous position
+        # what is actually dependendent on the previous position is whether or not the current position
+        # must correspond to an action to be taken (going long, going short)
+        # for some strageies, the position is either -1 or 1, being 0 only at the beginning or end of
+        # trading session
+        pass
+
     def get_most_recent(self, days=5, granul="S5"):
+        '''Get most recent data that will be prepended to the stream data, to have enough data to
+        compute all the necessary features and be able to trade from the first bar'''
         print("SEQUENCE: get_most_recent")
         now = datetime.utcnow()
         now = now - timedelta(microseconds=now.microsecond)
@@ -94,7 +165,6 @@ class DNNTrader(tpqoa.tpqoa):
 
         print("\nresampled history dataframe information:\n")
         df.info()
-
         return
 
     def resample_and_join(self):
@@ -120,22 +190,28 @@ class DNNTrader(tpqoa.tpqoa):
         self.data = df.copy()
         return
 
-    def predict(self):
+    def predict(self, TESTING=False):
         print("SEQUENCE: predict")
 
         df = self.data.copy()
-        df_s = (df - self.mu) / self.std
+        if not TESTING:
+            # if we are trading live (not TESTING) we need to normalize the data using
+            # training dataset statistics
+            df = (df - self.mu) / self.std
 
-
+        # get feature columns
         all_cols = self.data.columns
         lagged_cols = []
         for col in all_cols:
             if 'lag' in col:
                 lagged_cols.append(col)
 
-        df["proba"] = self.model.predict(df_s[lagged_cols])
+        df["proba"] = self.model.predict(df[lagged_cols])
 
         self.data = df.copy()
+
+        if TESTING:
+            return df["proba"]
         return
 
 
@@ -246,14 +322,48 @@ if __name__ == "__main__":
                        h_prob_th=cfginst.higher_go_long,
                        l_prob_th=cfginst.lower_go_short)
 
-    trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data
-    logging.info("main: most recent historical data obtained and resampled" +
-                 "now starting streaming data and trading...")
-    trader.stream_data(cfginst.instrument, stop=cfginst.stop_trading)  # streaming & trading here!!!!
+    TRADING = 0
+    BCKTESTING, FWTESTING = (1,0) if not TRADING else (0,0)
 
-    if trader.position != 0:
-        print("Closing position as we are ending trading!")
-        close_order = trader.create_order(instrument=cfginst.instrument,
-                                          units=-trader.position * trader.units,
-                                          suppress=True, ret=True)  # close Final Position
-        trader.report_trade(close_order, "GOING NEUTRAL")  # report Final Trade
+    if TRADING:
+        trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data
+        logging.info("main: most recent historical data obtained and resampled" +
+                     "now starting streaming data and trading...")
+        trader.stream_data(cfginst.instrument, stop=cfginst.stop_trading)  # streaming & trading here!!!!
+
+        if trader.position != 0:
+            print("Closing position as we are ending trading!")
+            close_order = trader.create_order(instrument=cfginst.instrument,
+                                              units=-trader.position * trader.units,
+                                              suppress=True, ret=True)  # close Final Position
+            trader.report_trade(close_order, "GOING NEUTRAL")  # report Final Trade
+    else: # TESTING
+        import configs.EUR_USD_1 as eu
+
+        instrument = eu.instrument
+        # loading data
+        base_data_folder_name = cfg.data_path + instrument + "/"
+        train_folder = base_data_folder_name + "Train/"
+        valid_folder = base_data_folder_name + "Valid/"
+        test_folder = base_data_folder_name + "Test/"
+        assert os.path.exists(base_data_folder_name), "Base data folder DO NOT exists!"
+        train_filename = train_folder + "train.csv"
+        valid_filename = valid_folder + "valid.csv"
+        test_filename = test_folder + "test.csv"
+        train_labl_filename = train_folder + "trainlabels.csv"
+        valid_labl_filename = valid_folder + "validlabels.csv"
+        test_labl_filename = test_folder + "testlabels.csv"
+
+        train_data = pd.read_csv(train_filename, index_col=None, header=0)
+        test_data = pd.read_csv(test_filename, index_col=None, header=0)
+        # valid not used for now, using keras support but that uses
+        # std and mean computed on the train+valid data
+        train_labels = pd.read_csv(train_labl_filename, index_col=None, header=0)
+        test_labels = pd.read_csv(test_labl_filename, index_col=None, header=0)
+
+        #trader.prepare_data() ### necessary? maybe not if I take data prepared by getpreparedata.py
+        if BCKTESTING:
+            trader.backtest(train_data, train_labels)
+
+        else: # fwtesting
+            trader.fwtest(test_data, test_labels)

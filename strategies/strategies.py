@@ -1,7 +1,6 @@
 
+# collection of trading strategies
 from abc import ABCMeta, abstractmethod
-
-
 
 
 class Strategy(metaclass=ABCMeta):
@@ -10,7 +9,8 @@ class Strategy(metaclass=ABCMeta):
             position=0,
             prob_up=0.5,
             thr_up=.53,
-            thr_low=.47):
+            thr_low=.47,
+            units=1000):
         pass
 
 
