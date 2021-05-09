@@ -76,24 +76,41 @@ class DNNTrader(tpqoa.tpqoa):
         test the (model,strategy) pair on the passed, and compare the buy&hold with
         the chosen strategy. Ideally estimation of trading costs should be included
         '''
+
+        #overwrite strategy to set test mode
+        self.strategy = Strategy_1(instrument=self.instrument,
+                                   order_fun=self.create_order,  # partial(self.create_order,
+                                   #      self.instrument, suppress=True, ret=True),
+                                   report_fun=self.report_trade,
+                                   live_or_test="test")
         test_outs = pd.DataFrame()
         self.data = data.copy()
-        test_outs["pred"] = self.predict(TESTING=True)
+        test_outs["probs"] = self.predict(TESTING=True)
+
+        #test_outs["position"] = test_outs["pred"]
+        # Todo: implement strategy here!!
+        test_outs["position"] = self.strategy.act(
+            prob_up=test_outs["probs"],
+            thr_up=self.h_prob_th,
+            thr_low=self.l_prob_th)
 
         # calculate Strategy Returns: I need access to returns here!!!
         # but likely the returns I have access here are normalized..
         # Todo: review how to grant access to returns here, and see if access to normalized is doable
-        test_outs["strategy"] = test_outs["pred"] * data["returns"]
+        test_outs["strategy_gross"] = test_outs["position"] * (data["returns"] * self.std["returns"]
+                                                         + self.mu["returns"]) #denormalizing
 
         # determine when a trade takes place
-        test_outs["trades"] = test_outs["pred"].diff().fillna(0).abs()
+        test_outs["trades"] = test_outs["position"].diff().fillna(0).abs()
 
         # subtract transaction costs from return when trade takes place
-        test_outs.strategy = test_outs.strategy - test_outs.trades * self.hspread_ptc
+        test_outs['strategy'] = test_outs["strategy_gross"] - test_outs.trades * self.hspread_ptc
 
         # calculate cumulative returns for strategy & buy and hold
-        test_outs["creturns"] = data["returns"].cumsum().apply(np.exp)
+        test_outs["creturns"] = (data["returns"] * self.std["returns"]
+                                 + self.mu["returns"]).cumsum().apply(np.exp)
         test_outs["cstrategy"] = test_outs['strategy'].cumsum().apply(np.exp)
+        test_outs["cstrategy_gross"] = test_outs['strategy_gross'].cumsum().apply(np.exp)
         results = test_outs
 
         # absolute performance of the strategy
@@ -101,18 +118,28 @@ class DNNTrader(tpqoa.tpqoa):
         # out-/underperformance of strategy
         outperf = perf - results["creturns"].iloc[-1]
 
-        # plot results
-        print("plotting cumulative results of buy&hold and strategys")
-        title = "{} | TC = {}".format(self.instrument, self.hspread_ptc)
+        print("outperf is ", outperf)
 
-        plt.figure()
-        results[["cstrategy"]].plot(title=title, figsize=(12, 8)) #,  "creturns"
-        plt.show
+        # plot results
+        # todo: review why figures are not shown as expected
+        print("plotting cumulative results of buy&hold and strategy")
+        title = "{} | Transaction Cost = {}".format(self.instrument, self.hspread_ptc)
+
+        #plt.figure()
+        results[["cstrategy",  "creturns", "cstrategy_gross"]].plot(title=title, figsize=(12, 8))
 
         plt.figure()
 
         plt.plot([i for i in range(10)])
         plt.show()
+
+        # reset strategy to live
+        #overwrite strategy to set test mode
+        self.strategy = Strategy_1(instrument=self.instrument,
+                                   order_fun=self.create_order,  # partial(self.create_order,
+                                   #      self.instrument, suppress=True, ret=True),
+                                   report_fun=self.report_trade,
+                                   live_or_test="live")
 
         return round(perf, 6), round(outperf, 6)
         # load passed data and visualize it

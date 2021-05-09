@@ -1,6 +1,7 @@
 
 # collection of trading strategies
 from abc import ABCMeta, abstractmethod
+import numpy as np
 
 
 class Strategy(metaclass=ABCMeta):
@@ -35,7 +36,8 @@ class Strategy_1(Strategy):
             prob_up=0.5,
             thr_up=.53,
             thr_low=.47,
-            units=1000):
+            units=1000,
+            predictions=None):
 
         self.position = position
 
@@ -49,21 +51,29 @@ class Strategy_1(Strategy):
                     order = self.order_fun(self.instrument, -units,suppress=True, ret=True)
                     self.report_fun(order, "GOING SHORT")
                     self.position = -1
-
             elif self.position == -1:
                 if prob_up > thr_up:  # 0.53:
                     order = self.order_fun(self.instrument, units * 2,suppress=True, ret=True)
                     self.report_fun(order, "GOING LONG")
                     self.position = 1
-
             elif self.position == 1:
                 if prob_up < thr_low:  # 0.47:
                     order = self.order_fun(self.instrument, -units * 2,suppress=True, ret=True)
                     self.report_fun(order, "GOING SHORT")
                     self.position = -1
-        else:
-            print("Strategy testing to be implemented!!!!")
-            pass
 
-        return self.position
+            return self.position #"live"
+
+        else: #"fw/bw test"
+            positions = np.where(prob_up > thr_up, 1, np.where(prob_up < thr_low, -1,0))
+            # todo: take care of 0s and make them as preceding position, do it in a better way
+            for i in range(1, len(positions)):
+                if positions[i] == 0:
+                    positions[i] = positions[i-1]
+
+            print("Strategy testing still to be implemented!!!!")
+            return positions
+
+
+
 
