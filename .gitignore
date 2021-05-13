@@ -6,8 +6,11 @@ __pycache__/
 *$py.class
 *.pyc
 
+# specific to this project
 configs/oanda.cfg
 configs/oanda_cfg.backup
+Data/
+TrainedModels/
 
 # C extensions
 *.so

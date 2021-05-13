@@ -4,13 +4,28 @@ DONE:
 - complete the chain adding the trading part. Start simple with loading the pretrained model, streaming live
 data and setting orders based on the model output(s). See trader.py? o meglio DNNtrader.py
 
-- move the project to juniper notebooks to visualize, still remaing as pycharm project
-as jpnb: trader_ml.py, trainer.py, getpreparedata.py
-
+Done first version:
 - prepare real backtesting of the DNNTrader class, which indeed includes a strategy that we
 want to backtest with graphical visualization of the model behaviour on a long period
 
-- add trading costs!!!!
+Done first version:
+- add trading costs!!!! (estimated with fixed half price)
+
+Todo:
+
+- Why is bollinger often ending up in non-computed/nan???? see in getpreparedata and common/utils.py
+  Because dividing by std computed in a window is risky, for some time data is contant for missing data
+   and therefore std goes to 0. Review how to work with it, for now replaced / with *...
+
+- TESTs
+- try with other instruments
+- use data representation that keeps time reference so to have time perspective in charts and evaluation
+
+- review why ticks are so async... what is the origin of the asynchronicity?
+
+- move the project to juniper notebooks to visualize, still remaining as pycharm project
+as jpnb: trader_ml.py, trainer.py, getpreparedata.py
+
 
 - add more tasks to DNN, add loss function components and optimize the overall loss
 

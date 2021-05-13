@@ -70,8 +70,6 @@ class Strategy_1(Strategy):
             for i in range(1, len(positions)):
                 if positions[i] == 0:
                     positions[i] = positions[i-1]
-
-            print("Strategy testing still to be implemented!!!!")
             return positions
 
 

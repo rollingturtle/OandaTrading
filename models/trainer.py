@@ -8,7 +8,7 @@ sys.path.append('../')
 
 import configs.config as cfg
 from models.dnn import *
-import configs.EUR_USD_1 as eu
+import configs.EUR_PLN_1 as eu
 
 
 set_seeds(100)
@@ -56,8 +56,8 @@ print(train_data.head())
 # print("NANs in DATA: ", train_data[lagged_cols].isnull().values.any(),
 #       "\nNANs in LABELS: ", train_labels["dir"].isnull().values.any())
 
-assert train_data[lagged_cols].isnull().values.any() is False, "NANs in Training Data"
-assert train_labels["dir"].isnull().values.any() is False, "NANs in LABELS"
+assert (not train_data[lagged_cols].isnull().values.any()), "NANs in Training Data"
+assert (not train_labels["dir"].isnull().values.any()), "NANs in LABELS"
 
 logging.info("Creating the NN model...")
 model = dnn1(dropout = True,
@@ -89,5 +89,12 @@ print("main: valuating the model on out-of-sample data (test data)")
 model.evaluate(test_data[lagged_cols], test_labels["dir"], verbose=True)
 
 # Todo: save the model under folder for specific configuration (See conf_name under EUR_USD_1.py)
-model.save(cfg.proj_path + "/TrainedModels/" + instrument +"/DNN_model.h5")
-print("main:Trained model save to " + cfg.proj_path + "/TrainedModels/" + instrument +"/DNN_model.h5")
+
+model_folder = cfg.proj_path + "/TrainedModels/" + instrument
+if not os.path.exists(model_folder):
+    logging.info("trainer: specific model folder does not exist: creating it...")
+    os.mkdir(model_folder)
+    # Todo add choice to break out?
+
+model.save(model_folder + "/DNN_model.h5")
+print("main:Trained model save to " + model_folder +"/DNN_model.h5")

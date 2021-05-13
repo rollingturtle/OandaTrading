@@ -11,9 +11,6 @@ sys.path.append('../')
 import configs.config as cfg
 from common import utils as u
 
-# change this import pointing to the wanted/needed configuration for the main to work
-import configs.EUR_USD_1 as cfginst
-
 
 class OandaDataCollector():
     '''
@@ -26,11 +23,11 @@ class OandaDataCollector():
                  labels,
                  features,
                  conf_file):
+        # Todo: pass here also the instrument conf file, and in that all the filenames below will be defined
 
         self.instrument = instrument
         self.labels = labels #"dir", "profit_over_spread", "loss_over_spread"]
-        self.features = features #["dir", "sma", "boll", "min", "max", "mom", "vol",
-                        # "profit_over_spread", "loss_over_spread"]
+        self.features = features
 
         # raw tick data, and resampled version which has precise time interval
         self.raw_data = None
@@ -44,7 +41,8 @@ class OandaDataCollector():
         self.validation_ds = None
         self.test_ds = None
 
-        # 3 datasets obtained from the 3 above via starndardization. Labelling values for market direction
+        # 3 datasets obtained from the 3 above via starndardization.
+        # Labelling values for market direction
         # are not to be taken from here
         self.train_ds_std = None
         self.validation_ds_std = None
@@ -59,7 +57,8 @@ class OandaDataCollector():
         self.base_data_folder_name = cfg.data_path + str(self.instrument) + "/"
 
         self.raw_data_file_name = self.base_data_folder_name + "raw_data.csv"
-        self.raw_data_featured_resampled_file_name = self.base_data_folder_name + "raw_data_featured_resampled.csv"
+        self.raw_data_featured_resampled_file_name = \
+            self.base_data_folder_name + "raw_data_featured_resampled.csv"
 
         self.train_folder = self.base_data_folder_name + "Train/"
         self.valid_folder = self.base_data_folder_name + "Valid/"
@@ -84,7 +83,6 @@ class OandaDataCollector():
 
     def load_data_from_file(self):
         '''load raw data and process data from file'''
-
         # raw data
         self.raw_data = pd.read_csv(self.raw_data_file_name,
                                     index_col=None,header=0)
@@ -95,9 +93,8 @@ class OandaDataCollector():
         self.train_ds_std = pd.read_csv(self.train_filename, index_col=None, header=0)
         self.validation_ds_std = pd.read_csv(self.valid_filename, index_col=None, header=0)
         self.test_ds_std = pd.read_csv(self.test_filename, index_col=None,header=0)
-
         self.params = pickle.load(open(self.train_folder  + "params.pkl", "rb"))
-
+        return
 
     def report(self):
         '''provides insights on data memorized in the odc object'''
@@ -106,7 +103,6 @@ class OandaDataCollector():
                     "train_ds_std": self.train_ds_std,
                     "validation_ds_std" : self.validation_ds_std,
                     "test_ds_std" : self.test_ds_std}
-
         for k, df in datalist.items():
             if df is not None:
                 print("\nreport: Display info for dataframe {}".format(k))
@@ -114,24 +110,20 @@ class OandaDataCollector():
                 print("\n")
             else:
                 print("\nreport: Dataframe {} is None".format(k))
-
         print("\nreport: displaying information about training set statistics")
-        print("params is {}".format(self.params))
+        print("report: params is {}".format(self.params))
         return
 
-
-    def get_most_recent(self, granul="S5", days = 2):
+    def get_most_recent(self, granul="S30", days = 2): #S5
         '''
         Get the most recent data for the instrument for which the object was created
         :param granul: base frequency for raw data being downloaded
         :param days: number of past days (from today) we are downloading data for
         '''
-
         # set start and end date for historical data retrieval
         now = datetime.utcnow()
         now = now - timedelta(microseconds = now.microsecond) # Oanda does not deal with microseconds
         past = now - timedelta(days = days)
-
         # get historical data up to now
         logging.info("get_most_recent: calling tpqoa get_history....")
         self.raw_data = self.api_oanda.get_history(
@@ -142,94 +134,101 @@ class OandaDataCollector():
             price = "M",
             localize = False).c.dropna().to_frame()
         self.raw_data.rename(columns={"c": self.instrument}, inplace=True)
-        print("get_most_recent: self.raw_data.columns ", self.raw_data.columns)
+        print("get_most_recent: self.raw_data.info() ", self.raw_data.info())
+        print("get_most_recent: self.raw_data ", self.raw_data)
+
+
+        whnull = self.raw_data.isnull()
+        row_has_nan = whnull.any(axis=1)
+        nanrows = self.raw_data[row_has_nan]
+
+        assert (not self.raw_data.isnull().values.any()), \
+            "get_most_recent: 1-NANs in self.raw_data_featured" #
         return
 
     def make_features(self, window = 10, sma_int=5, hspread_ptc=0.00007):
         '''
-        Add some features out of the instrument raw data.
-        Any technical indicator can be added as feature
-        pip = 0.0001 fourth price decimal
-        spread = 1.5
-        spread in currency units = 1.5 * 0.0001
-
-        e.g. ASK price > BID price.
-        ASK - BID = Spread
-        Spread can be expressed in PIPS
-        PIP = (0.0001)^-1 * (ASK - BID) in the reference currency (the one we use to pay what we buy)
-        e.g.:for the amount of 1$, means you pay 1.00015$ = 1 *(1 + 0,00015)
-
-        Here we use estimate proportional transaction cost as 0.007%
-
-         lret(t) = log( price(t) / price(t-1))
-
-        Assume positions like:
-        price(t) > price(t-1) *(1 + 0,00007)  BUY (go long) ==> lret(t) > lg(1 + 0,00007)  go long
-        price(t) < price(t-1) * (1 - 0,,0007) SELL (go short)==> lret(t) < lg(1 - 0,00007) go short
+        creates features using utils.make_features
         '''
         df = self.raw_data.copy()
         ref_price = self.instrument
-
         # Todo: do this check better
-        assert len(df[ref_price]) > sma_int, \
+        assert (len(df[ref_price]) > sma_int), \
             "make_features: the dataframe lenght is not greater than the Simple Moving Average interval"
-        assert len(df[ref_price]) > window, \
+        assert (len(df[ref_price]) > window), \
             "make_features: the dataframe lenght is not greater than the Bollinger window"
 
         self.raw_data_featured = u.make_features(df, sma_int, window, hspread_ptc, ref_price=ref_price )
         logging.info("make_features: created new features and added to self.raw_data_featured")
+        print("make_features: self.raw_data_featured.columns ", self.raw_data_featured.columns)
+
+        assert (not self.raw_data_featured.isnull().values.any()), \
+            "make_features: 1-NANs in self.raw_data_featured"
         return
 
     def make_lagged_features(self, lags=5):
-        ''' Add lagged features to data. Default lag is 5'''
+        '''
+        Add lagged features to data.
+        Creates features using utils.make_lagged_features
+        '''
+        assert (not self.raw_data_featured.isnull().values.any()), \
+            "make_lagged_features: 1-NANs in self.raw_data_featured"
 
         self.raw_data_featured = u.make_lagged_features(self.raw_data_featured,
                                                self.features,
                                                lags=lags)
+        assert (not self.raw_data_featured.isnull().values.any()), \
+            "make_lagged_features: 2-NANs in self.raw_data_featured"
         logging.info("make_lagged_features: created new features and added to self.raw_data_featured")
-
         return
-
 
     def resample_data(self,  brl="1min"):
         '''
         Resample data already obtained to the frequency defined by brl
         :param brl: default 1min
         '''
+        print("SEQUENCE: resample_data")
         bar_length = pd.to_timedelta(brl)
         # resampling data at the desired bar length,
         # holding the last value of the bar period (.last())
         # label right is to set the index to the end of the bar time
         # dropna is here to remove weekends.
         # iloc to remove the last bar/row typically incomplete
+        assert (not self.raw_data_featured.isnull().values.any()), \
+            "resample_data: 1-NANs in self.raw_data_featured"
+
         self.raw_data_featured_resampled = \
             self.raw_data_featured.resample(bar_length,
                             label = "right").last().dropna().iloc[:-1]
+
+        assert (not self.raw_data_featured.isnull().values.any()), \
+            "resample_data: 2-NANs in self.raw_data_featured"
+        assert (not self.raw_data_featured_resampled.isnull().values.any()), \
+            "resample_data: 2-NANs in self.raw_data_featured_resampled"
+
         logging.info("resample_data: resampled the just created new features, into self.raw_data_featured_resampled")
-
         return
-
 
     def make_3_datasets(self, split_pcs=(0.8, 0.05, 0.15)):
         '''
         Generate 3 datasets for ML training/evaluation/test and save to files.
         '''
-
         if self.raw_data_featured_resampled is not None: # it was populated in precedence
             df = self.raw_data_featured_resampled
         else:
             logging.info("make_3_datasets: ERROR: self.raw_data_featured_resampled was empty!")
             #df = self.raw_data
             exit()
-
-        assert sum(split_pcs) == 1, "make_3_datasets: split points are not dividing the unity"
+        assert (sum(split_pcs) == 1), "make_3_datasets: split points are not dividing the unity"
+        assert (not self.raw_data_featured_resampled.isnull().values.any()), \
+            "make_3_datasets: NANs in self.raw_data_featured_resampled"
 
         train_split = int(len(df) * split_pcs[0])
         val_split = int(len(df) *(split_pcs[0] + split_pcs[1]))
-
         self.train_ds = df.iloc[:train_split].copy()
         self.validation_ds = df.iloc[train_split:val_split].copy()
         self.test_ds = df.iloc[val_split:].copy()
+        print("make_3_datasets: self.train_ds.info() ",self.train_ds.info())
         return
 
     def standardize(self):
@@ -239,13 +238,14 @@ class OandaDataCollector():
         '''
         logging.info("standardize: subtracting mean and dividing by standard deviation, for each feature!")
         mu, std = self.train_ds.mean(), self.train_ds.std()
-
+        print("standardize: std: ", std)
         # standardize all of them using training data derived statistics
         self.train_ds_std = (self.train_ds - mu) / std
         self.validation_ds_std = (self.validation_ds - mu) / std
         self.test_ds_std = (self.test_ds - mu) / std
-
         self.params = {"mu": mu, "std": std}
+        print("standardize: self.train_ds_std.info() ", self.train_ds_std.info())
+        assert (not self.train_ds_std.isnull().values.any()), "standardize: NANs in Training Data"
         return
 
     def save_to_file(self):
@@ -287,14 +287,14 @@ if __name__ == '__main__':
     '''
     __main__ execute functional test, or it can be used to download data for later use
     '''
+    # change this import pointing to the wanted/needed configuration for the main to work
+    import configs.EUR_PLN_1 as cfginst
 
     odc = OandaDataCollector(instrument=cfginst.instrument,
                              labels=cfginst.labels,
                              features=cfginst.features,
                              conf_file=cfg.conf_file)
     print('OandaDataCollector object created for instrument {}'.format(cfginst.instrument))
-
-
     NEW_DATA = True
     if NEW_DATA:
         # actual data collection of most recent data
