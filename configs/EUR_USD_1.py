@@ -28,5 +28,3 @@ higher_go_long = 0.7#0.6
 
 # bulk trade
 units = 1000
-
-# todo: add here also non numerical params for file name definitions relative to instrument

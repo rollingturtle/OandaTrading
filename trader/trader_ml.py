@@ -18,9 +18,7 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 from  strategies.strategies import Strategy_1
 
-from functools import partial
-
-set_seeds(100)
+# set_seeds(100)
 
 
 class DNNTrader(tpqoa.tpqoa):
@@ -91,7 +89,8 @@ class DNNTrader(tpqoa.tpqoa):
         # calculate Strategy Returns: I need access to returns here!!!
         # but likely the returns I have access here are normalized..
         # Todo: review how to grant access to returns here, and see if access to normalized is doable
-        test_outs["strategy_gross"] = test_outs["position"] * (data["returns"] * self.std["returns"]
+        test_outs["strategy_gross"] = test_outs["position"] * \
+                                      (data["returns"] * self.std["returns"]
                                                          + self.mu["returns"]) #denormalizing
         # determine when a trade takes place
         test_outs["trades"] = test_outs["position"].diff().fillna(0).abs()
@@ -245,19 +244,21 @@ if __name__ == "__main__":
     # change this import pointing to the wanted/needed configuration for the main to work
     import configs.EUR_PLN_1 as cfginst
 
-    base_data_folder_name = cfg.data_path + str(cfginst.instrument) + "/"
-    train_folder = base_data_folder_name + "Train/"
-    valid_folder = base_data_folder_name + "Valid/"
-    test_folder = base_data_folder_name + "Test/"
-    params = pickle.load(open(train_folder + "params.pkl", "rb"))
+    instrument = cfginst.instrument
+
+    # get or generate datafiles files and folders, if do not exist
+    namefiles_dict = {}
+    namefiles_dict = u.creates_filenames_dict(instrument, namefiles_dict, cfg)
+    #load params for data standardization
+    params = pickle.load(open(namefiles_dict["params"], "rb"))
     mu = params["mu"]
     std = params["std"]
-
+    # load trained model
     model = keras.models.load_model(cfg.trained_models_path +
-                                    cfginst.instrument + "/DNN_model.h5")
-
+                                    instrument + "/DNN_model.h5")
+    # create trader object using instrument configuration details
     trader = DNNTrader(cfg.conf_file,
-                       instrument=cfginst.instrument,
+                       instrument=instrument,
                        bar_length=cfginst.brl,
                        window=cfginst.window,
                        lags=cfginst.lags,
@@ -270,7 +271,8 @@ if __name__ == "__main__":
                        h_prob_th=cfginst.higher_go_long,
                        l_prob_th=cfginst.lower_go_short)
 
-    TRADING = 1
+    # either live trading or testing (back or fw testing)
+    TRADING = 0
     BCKTESTING, FWTESTING = (0,1) if not TRADING else (0,0)
 
     if TRADING:
@@ -286,28 +288,16 @@ if __name__ == "__main__":
                                               suppress=True, ret=True)  # close Final Position
             trader.report_trade(close_order, "GOING NEUTRAL")  # report Final Trade
     else: # TESTING
-        import configs.EUR_USD_1 as eu
-
-        instrument = eu.instrument
         # loading data
-        base_data_folder_name = cfg.data_path + instrument + "/"
-        train_folder = base_data_folder_name + "Train/"
-        valid_folder = base_data_folder_name + "Valid/"
-        test_folder = base_data_folder_name + "Test/"
-        assert os.path.exists(base_data_folder_name), "Base data folder DO NOT exists!"
-        train_filename = train_folder + "train.csv"
-        valid_filename = valid_folder + "valid.csv"
-        test_filename = test_folder + "test.csv"
-        train_labl_filename = train_folder + "trainlabels.csv"
-        valid_labl_filename = valid_folder + "validlabels.csv"
-        test_labl_filename = test_folder + "testlabels.csv"
-
-        train_data = pd.read_csv(train_filename, index_col=None, header=0)
-        test_data = pd.read_csv(test_filename, index_col=None, header=0)
+        assert os.path.exists(namefiles_dict["base_data_folder_name"]), "Base data folder DO NOT exists!"
+        train_data = pd.read_csv(namefiles_dict["train_filename"], index_col=None, header=0)
+        test_data = pd.read_csv(namefiles_dict["test_filename"], index_col=None, header=0)
         # valid not used for now, using keras support but that uses
         # std and mean computed on the train+valid data
-        train_labels = pd.read_csv(train_labl_filename, index_col=None, header=0)
-        test_labels = pd.read_csv(test_labl_filename, index_col=None, header=0)
+        train_labels = pd.read_csv(namefiles_dict["train_labl_filename"],
+                                   index_col=None, header=0)
+        test_labels = pd.read_csv(namefiles_dict["test_labl_filename"],
+                                  index_col=None, header=0)
 
         #trader.prepare_data() ### necessary? maybe not if I take data prepared by getpreparedata.py
         if BCKTESTING:

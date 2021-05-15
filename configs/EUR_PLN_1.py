@@ -4,6 +4,9 @@
 # this data must be shared between the training phase and the trading time
 # for the same kind of features must be computed at trading time
 # for the ML model to work
+import configs as cfg
+import os
+import logging
 
 instrument = "EUR_PLN"
 conf_name = instrument + "_1"
@@ -23,10 +26,8 @@ split_pcs = (0.7, 0.15, 0.15)
 stop_trading = 300
 
 #trading thresholds for probability
-lower_go_short = 0.42#0.4
-higher_go_long = 0.58#0.6
+lower_go_short = 0.28#0.4
+higher_go_long = 0.72#0.6
 
 # bulk trade
 units = 1000
-
-# todo: add here also non numerical params for file name definitions relative to instrument

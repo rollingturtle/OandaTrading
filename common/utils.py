@@ -10,7 +10,6 @@ import pickle
 
 import sys
 sys.path.append('../')
-import configs.config as cfg
 
 
 def make_features(df, sma_int, window, hspread_ptc, ref_price):
@@ -49,7 +48,6 @@ def make_features(df, sma_int, window, hspread_ptc, ref_price):
 
     # features: watch out for some of them to diverge (boll)
     df["sma"] = df[ref_price].rolling(window).mean() - df[ref_price].rolling(sma_int).mean()
-
     df["boll1"] = (df[ref_price] - df[ref_price].rolling(window).mean()) #/ df[ref_price].rolling(window).std()
     df["boll_std"] = df[ref_price].rolling(window).std() # todo: this can go to 0!!!
     df["min"] = df[ref_price].rolling(window).min() / df[ref_price] - 1
@@ -57,11 +55,9 @@ def make_features(df, sma_int, window, hspread_ptc, ref_price):
     df["mom"] = df["returns"].rolling(3).mean()  # todo make this a param
     df["vol"] = df["returns"].rolling(window).std()
     df.dropna(inplace=True)
-
     df["boll"] = df["boll1"] * df["boll_std"]  # TODO: replace for test /with *... see the meaning of rescaling with std
     #df.drop(columns=["boll_std","boll1"], inplace=True)
     return df
-
 
 def make_lagged_features(df, features, lags=5):
         ''' Add lagged features to data. Default lag is 5'''
@@ -74,3 +70,27 @@ def make_lagged_features(df, features, lags=5):
 
         df.dropna(inplace=True)
         return df
+
+def creates_filenames_dict(instrument, namefiles_dict, cfg):
+    '''
+
+    :param instrument: oanda instrument for which data folders will be created
+    :param namefiles_dict: dictionary in which we write filenames and folders for data storing
+    :param cfg: config object holding main general parameters
+    :return: dictionary of filenames and folder for data storage
+    '''
+    namefiles_dict["base_data_folder_name"]  = cfg.data_path + str(instrument) + "/"
+    namefiles_dict["raw_data_file_name"] = namefiles_dict["base_data_folder_name"] + "raw_data.csv"
+    namefiles_dict["raw_data_featured_resampled_file_name"] = namefiles_dict["base_data_folder_name"] + \
+                                                              "raw_data_featured_resampled.csv"
+    namefiles_dict["train_folder"]  = namefiles_dict["base_data_folder_name"]  + "Train/"
+    namefiles_dict["valid_folder"]  = namefiles_dict["base_data_folder_name"]  + "Valid/"
+    namefiles_dict["test_folder"] = namefiles_dict["base_data_folder_name"]  + "Test/"
+    namefiles_dict["train_filename"] = namefiles_dict["train_folder"] + "train.csv"
+    namefiles_dict["valid_filename"] = namefiles_dict["valid_folder"] + "valid.csv"
+    namefiles_dict["test_filename"] = namefiles_dict["test_folder"] + "test.csv"
+    namefiles_dict["train_labl_filename"] = namefiles_dict["train_folder"] + "trainlabels.csv"
+    namefiles_dict["valid_labl_filename"] = namefiles_dict["valid_folder"] + "validlabels.csv"
+    namefiles_dict["test_labl_filename"] = namefiles_dict["test_folder"] + "testlabels.csv"
+    namefiles_dict["params"] = namefiles_dict["train_folder"] + "params.pkl"
+    return namefiles_dict

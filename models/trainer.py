@@ -8,29 +8,27 @@ sys.path.append('../')
 
 import configs.config as cfg
 from models.dnn import *
-import configs.EUR_PLN_1 as eu
+import configs.EUR_PLN_1 as cfginst
+import common.utils as u
 
 
 set_seeds(100)
 
+# set instrument to work with
+instrument = cfginst.instrument
 
-# todo: move these definitions to the instrument related config file
-instrument = eu.instrument
+# get or generate datafiles files and folders, if do not exist
+namefiles_dict = {}
+namefiles_dict = u.creates_filenames_dict(cfginst.instrument, namefiles_dict, cfg)
 
 #loading data
-base_data_folder_name = cfg.data_path + instrument + "/"
-train_folder = base_data_folder_name + "Train/"
-valid_folder = base_data_folder_name + "Valid/"
-test_folder = base_data_folder_name + "Test/"
-
-assert os.path.exists(base_data_folder_name), "Base data folder DO NOT exists!"
-
-train_filename = train_folder + "train.csv"
-valid_filename = valid_folder + "valid.csv"
-test_filename = test_folder + "test.csv"
-train_labl_filename = train_folder + "trainlabels.csv"
-valid_labl_filename = valid_folder + "validlabels.csv"
-test_labl_filename = test_folder + "testlabels.csv"
+assert os.path.exists(namefiles_dict["base_data_folder_name"]), "Base data folder DO NOT exists!"
+train_filename = namefiles_dict["train_filename"]
+valid_filename = namefiles_dict["valid_filename"]
+test_filename = namefiles_dict["test_filename"]
+train_labl_filename = namefiles_dict["train_labl_filename"]
+valid_labl_filename = namefiles_dict["valid_labl_filename"]
+test_labl_filename = namefiles_dict["test_labl_filename"]
 
 train_data = pd.read_csv(train_filename, index_col=None, header=0)
 test_data = pd.read_csv(test_filename, index_col=None, header=0)
@@ -52,9 +50,6 @@ print("how many Lagged columns:")
 print(len(lagged_cols))
 print(train_data.head())
 
-# print("TEST if there ar NANs in data or labels")
-# print("NANs in DATA: ", train_data[lagged_cols].isnull().values.any(),
-#       "\nNANs in LABELS: ", train_labels["dir"].isnull().values.any())
 
 assert (not train_data[lagged_cols].isnull().values.any()), "NANs in Training Data"
 assert (not train_labels["dir"].isnull().values.any()), "NANs in LABELS"
@@ -68,9 +63,9 @@ logging.info("Training the NN model...")
 model.fit(x = train_data[lagged_cols],
           y = train_labels["dir"],
           epochs = 53,
-          verbose = False,
+          verbose = True,
           validation_split = 0.1,
-          shuffle = False,
+          shuffle = True,
           class_weight = cw(train_labels))
 
 print("\n")

@@ -16,6 +16,7 @@ class Strategy(metaclass=ABCMeta):
 
 
 class Strategy_1(Strategy):
+
     def __init__(self,
                  instrument,
                  order_fun,
@@ -28,7 +29,6 @@ class Strategy_1(Strategy):
         self.live_or_test = live_or_test
         self.instrument =  instrument
         self.position = 0
-
         return
 
     def act(self,

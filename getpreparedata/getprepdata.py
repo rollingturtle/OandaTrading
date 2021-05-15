@@ -14,15 +14,16 @@ from common import utils as u
 
 class OandaDataCollector():
     '''
-    Class that downloads data from Oanda for a specific instrument, creates feature, and lagged features.
-    It can save the data into a set of folders defined in the config module
+    Class that downloads data from Oanda for a specific instrument, can create features and lagged features.
+    It can save the data into a set of folders defined in the specific instrument config module
     '''
 
     def __init__(self,
                  instrument,
                  labels,
                  features,
-                 conf_file):
+                 conf_file,
+                 namefiles_dict):
         # Todo: pass here also the instrument conf file, and in that all the filenames below will be defined
 
         self.instrument = instrument
@@ -54,46 +55,37 @@ class OandaDataCollector():
         # tpqoa object to download historical data
         self.api_oanda = tpqoa.tpqoa(conf_file)
 
-        self.base_data_folder_name = cfg.data_path + str(self.instrument) + "/"
+        # create/get dictionary of data filenames and folders
+        self.namefiles_dict = namefiles_dict.copy()
 
-        self.raw_data_file_name = self.base_data_folder_name + "raw_data.csv"
-        self.raw_data_featured_resampled_file_name = \
-            self.base_data_folder_name + "raw_data_featured_resampled.csv"
-
-        self.train_folder = self.base_data_folder_name + "Train/"
-        self.valid_folder = self.base_data_folder_name + "Valid/"
-        self.test_folder = self.base_data_folder_name + "Test/"
-
-        if os.path.exists(self.base_data_folder_name):
-            logging.info("__init__: Base folder exists: we may be overwriting existing files!")
+        if os.path.exists(self.namefiles_dict["base_data_folder_name"]):
+            logging.info("__init__: Base folder exists: you may be overwriting existing files!")
             # Todo add choice to break out?
         else:
             logging.info("__init__: Non existent Base folder: creating it...")
-            os.mkdir(self.base_data_folder_name)
-            os.mkdir(self.train_folder)
-            os.mkdir(self.valid_folder)
-            os.mkdir(self.test_folder)
-        self.train_filename = self.train_folder + "train.csv"
-        self.valid_filename = self.valid_folder + "valid.csv"
-        self.test_filename = self.test_folder + "test.csv"
-        self.train_labl_filename = self.train_folder + "trainlabels.csv"
-        self.valid_labl_filename = self.valid_folder + "validlabels.csv"
-        self.test_labl_filename = self.test_folder + "testlabels.csv"
+            os.mkdir(self.namefiles_dict["base_data_folder_name"])
+            os.mkdir(self.namefiles_dict["train_folder"])
+            os.mkdir(self.namefiles_dict["valid_folder"])
+            os.mkdir(self.namefiles_dict["test_folder"])
         return
 
     def load_data_from_file(self):
         '''load raw data and process data from file'''
         # raw data
-        self.raw_data = pd.read_csv(self.raw_data_file_name,
+        self.raw_data = pd.read_csv(self.namefiles_dict["raw_data_file_name"],
                                     index_col=None,header=0)
         self.raw_data_featured_resampled = pd.read_csv(
-            self.raw_data_featured_resampled_file_name, index_col=None, header=0)
+            self.namefiles_dict["raw_data_featured_resampled_file_name"],
+                                    index_col=None, header=0)
 
         # loading 3 datasets, standardized, which contains also the columns for labels
-        self.train_ds_std = pd.read_csv(self.train_filename, index_col=None, header=0)
-        self.validation_ds_std = pd.read_csv(self.valid_filename, index_col=None, header=0)
-        self.test_ds_std = pd.read_csv(self.test_filename, index_col=None,header=0)
-        self.params = pickle.load(open(self.train_folder  + "params.pkl", "rb"))
+        self.train_ds_std = pd.read_csv(self.namefiles_dict["train_filename"],
+                                        index_col=None, header=0)
+        self.validation_ds_std = pd.read_csv(self.namefiles_dict["valid_filename"],
+                                        index_col=None, header=0)
+        self.test_ds_std = pd.read_csv(self.namefiles_dict["test_filename"],
+                                       index_col=None,header=0)
+        self.params = pickle.load(open(self.namefiles_dict["train_folder"]  + "params.pkl", "rb"))
         return
 
     def report(self):
@@ -136,7 +128,6 @@ class OandaDataCollector():
         self.raw_data.rename(columns={"c": self.instrument}, inplace=True)
         print("get_most_recent: self.raw_data.info() ", self.raw_data.info())
         print("get_most_recent: self.raw_data ", self.raw_data)
-
 
         whnull = self.raw_data.isnull()
         row_has_nan = whnull.any(axis=1)
@@ -251,34 +242,34 @@ class OandaDataCollector():
     def save_to_file(self):
         '''Save the previously formed datasets to disk'''
         logging.info("save_to_file: Saving raw data and resampled raw data to {} and to {}".format(
-                self.raw_data_file_name,
-                  self.raw_data_featured_resampled_file_name))
+                self.namefiles_dict["raw_data_file_name"],
+                  self.namefiles_dict["raw_data_featured_resampled_file_name"]))
 
-        #TODO: should save index=True for self.raw_data_file_name so as to be free to resample at different
+        #TODO: should save index=True for self.namefiles_dict["raw_data_file_name"] so as to be free to resample at different
         # frequency later on, as if I want to add a new feature, I start from raw data, add the feature
         # make the lagged versions of all of them and then resample to get the frequency
         # so in order to get the new feature, I need resampling to work on the data I saved previously
         # therefore I need to save here the index, so resampling has the reference values...
-        self.raw_data.to_csv(self.raw_data_file_name,
+        self.raw_data.to_csv(self.namefiles_dict["raw_data_file_name"],
                              index = False, header=True)
-        self.raw_data_featured_resampled.to_csv(self.raw_data_featured_resampled_file_name,
+        self.raw_data_featured_resampled.to_csv(self.namefiles_dict["raw_data_featured_resampled_file_name"],
                                                 index = False, header=True)
 
-        logging.info('save_to_file: Saving data input files to {}'.format(self.base_data_folder_name))
-        self.train_ds_std.to_csv(self.train_filename, index = False, header=True)
-        logging.info("save_to_file: Save train_ds_std to {}".format(self.train_filename))
-        self.validation_ds_std.to_csv(self.valid_filename, index = False, header=True)
-        logging.info("save_to_file: Save validation_ds_std to {}".format(self.valid_filename))
-        self.test_ds_std.to_csv(self.test_filename, index = False, header=True)
-        logging.info("save_to_file: Save test_ds_std to {}".format(self.test_filename))
+        logging.info('save_to_file: Saving data input files to {}'.format(self.namefiles_dict["base_data_folder_name"]))
+        self.train_ds_std.to_csv(self.namefiles_dict["train_filename"], index = False, header=True)
+        logging.info("save_to_file: Save train_ds_std to {}".format(self.namefiles_dict["train_filename"]))
+        self.validation_ds_std.to_csv(self.namefiles_dict["valid_filename"], index = False, header=True)
+        logging.info("save_to_file: Save validation_ds_std to {}".format(self.namefiles_dict["valid_filename"]))
+        self.test_ds_std.to_csv(self.namefiles_dict["test_filename"], index = False, header=True)
+        logging.info("save_to_file: Save test_ds_std to {}".format(self.namefiles_dict["test_filename"]))
 
-        logging.info('save_to_file: saving data label files to {}'.format(self.base_data_folder_name))
-        self.train_ds[self.labels].to_csv(self.train_labl_filename, index = False, header=True)
-        self.validation_ds[self.labels].to_csv(self.valid_labl_filename, index = False, header=True)
-        self.test_ds[self.labels].to_csv(self.test_labl_filename, index = False, header=True)
+        logging.info('save_to_file: saving data label files to {}'.format(self.namefiles_dict["base_data_folder_name"]))
+        self.train_ds[self.labels].to_csv(self.namefiles_dict["train_labl_filename"], index = False, header=True)
+        self.validation_ds[self.labels].to_csv(self.namefiles_dict["valid_labl_filename"], index = False, header=True)
+        self.test_ds[self.labels].to_csv(self.namefiles_dict["test_labl_filename"], index = False, header=True)
 
-        logging.info('save_to_file: saving params to file {}'.format(self.train_folder  + "params.pkl"))
-        pickle.dump(self.params, open(self.train_folder  + "params.pkl", "wb"))
+        logging.info('save_to_file: saving params to file {}'.format(self.namefiles_dict["train_folder"]  + "params.pkl"))
+        pickle.dump(self.params, open(self.namefiles_dict["train_folder"]  + "params.pkl", "wb"))
         return
 
 
@@ -290,10 +281,15 @@ if __name__ == '__main__':
     # change this import pointing to the wanted/needed configuration for the main to work
     import configs.EUR_PLN_1 as cfginst
 
+    # get or generate datafiles files and folders, if do not exist
+    namefiles_dict = {}
+    namefiles_dict = u.creates_filenames_dict(cfginst.instrument, namefiles_dict, cfg)
+
     odc = OandaDataCollector(instrument=cfginst.instrument,
                              labels=cfginst.labels,
                              features=cfginst.features,
-                             conf_file=cfg.conf_file)
+                             conf_file=cfg.conf_file,
+                             namefiles_dict=namefiles_dict)
     print('OandaDataCollector object created for instrument {}'.format(cfginst.instrument))
     NEW_DATA = True
     if NEW_DATA:
