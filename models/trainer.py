@@ -8,7 +8,7 @@ sys.path.append('../')
 
 import configs.config as cfg
 from models.dnn import *
-import configs.EUR_PLN_1 as cfginst
+import configs.EUR_PLN_2 as cfginst
 import common.utils as u
 
 

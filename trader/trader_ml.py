@@ -242,7 +242,7 @@ class DNNTrader(tpqoa.tpqoa):
 if __name__ == "__main__":
 
     # change this import pointing to the wanted/needed configuration for the main to work
-    import configs.EUR_PLN_1 as cfginst
+    import configs.EUR_PLN_2 as cfginst
 
     instrument = cfginst.instrument
 

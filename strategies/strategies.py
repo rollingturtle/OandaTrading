@@ -43,21 +43,21 @@ class Strategy_1(Strategy):
 
         if self.live_or_test == "live":
             if self.position == 0:
-                if prob_up > thr_up:  # . 0.53:
+                if prob_up > thr_up:
                     order = self.order_fun(self.instrument, units,suppress=True, ret=True)
                     self.report_fun(order, "GOING LONG")
                     self.position = 1
-                elif prob_up < thr_low:  # 0.47:
+                elif prob_up < thr_low:
                     order = self.order_fun(self.instrument, -units,suppress=True, ret=True)
                     self.report_fun(order, "GOING SHORT")
                     self.position = -1
             elif self.position == -1:
-                if prob_up > thr_up:  # 0.53:
+                if prob_up > thr_up:
                     order = self.order_fun(self.instrument, units * 2,suppress=True, ret=True)
                     self.report_fun(order, "GOING LONG")
                     self.position = 1
             elif self.position == 1:
-                if prob_up < thr_low:  # 0.47:
+                if prob_up < thr_low:
                     order = self.order_fun(self.instrument, -units * 2,suppress=True, ret=True)
                     self.report_fun(order, "GOING SHORT")
                     self.position = -1
