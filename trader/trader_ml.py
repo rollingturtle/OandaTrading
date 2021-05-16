@@ -273,7 +273,7 @@ if __name__ == "__main__":
 
     # either live trading or testing (back or fw testing)
     TRADING = 0
-    BCKTESTING, FWTESTING = (0,1) if not TRADING else (0,0)
+    BCKTESTING, FWTESTING = (1,0) if not TRADING else (0,0)
 
     if TRADING:
         trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data

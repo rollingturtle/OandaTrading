@@ -79,13 +79,17 @@ def creates_filenames_dict(instrument, namefiles_dict, cfg):
     :param cfg: config object holding main general parameters
     :return: dictionary of filenames and folder for data storage
     '''
+    #folders
     namefiles_dict["base_data_folder_name"]  = cfg.data_path + str(instrument) + "/"
-    namefiles_dict["raw_data_file_name"] = namefiles_dict["base_data_folder_name"] + "raw_data.csv"
-    namefiles_dict["raw_data_featured_resampled_file_name"] = namefiles_dict["base_data_folder_name"] + \
-                                                              "raw_data_featured_resampled.csv"
+    namefiles_dict["model_folder"] = cfg.proj_path + "/TrainedModels/" + str(instrument) + "/"
     namefiles_dict["train_folder"]  = namefiles_dict["base_data_folder_name"]  + "Train/"
     namefiles_dict["valid_folder"]  = namefiles_dict["base_data_folder_name"]  + "Valid/"
     namefiles_dict["test_folder"] = namefiles_dict["base_data_folder_name"]  + "Test/"
+
+    #files
+    namefiles_dict["raw_data_file_name"] = namefiles_dict["base_data_folder_name"] + "raw_data.csv"
+    namefiles_dict["raw_data_featured_resampled_file_name"] = namefiles_dict["base_data_folder_name"] + \
+                                                              "raw_data_featured_resampled.csv"
     namefiles_dict["train_filename"] = namefiles_dict["train_folder"] + "train.csv"
     namefiles_dict["valid_filename"] = namefiles_dict["valid_folder"] + "valid.csv"
     namefiles_dict["test_filename"] = namefiles_dict["test_folder"] + "test.csv"

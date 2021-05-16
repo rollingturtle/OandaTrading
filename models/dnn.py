@@ -28,14 +28,25 @@ optimizer = Adam(lr=0.0001)
 optimz = tf.keras.optimizers.Adam(learning_rate=0.0001)
 
 
-
 def dnn1(hu_list=(128, 32, 16),
          dropout=False,
          rate=0.2,
          regularize=True,
          reg=l2(0.0005),  #l1(0.0005)
-                 optimizer=optimizer,
+         optimizer=optimizer,
          input_dim=None):
+    '''
+    Implements simple feedforward fully connected layer
+
+    :param hu_list: tuple of dimensions, one for each layer
+    :param dropout: boolean
+    :param rate: dropout rate
+    :param regularize: whether to add further regularization
+    :param reg: the kind or regularizer to add
+    :param optimizer: optimizer to use
+    :param input_dim: dimension of inputs
+    :return: keras model
+    '''
 
     if not regularize:
         reg = None

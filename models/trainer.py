@@ -11,6 +11,7 @@ from models.dnn import *
 import configs.EUR_PLN_2 as cfginst
 import common.utils as u
 
+# Todo: make the trainer a class that takes in instrument configuration file and kind of model to train
 
 set_seeds(100)
 
@@ -21,22 +22,17 @@ instrument = cfginst.instrument
 namefiles_dict = {}
 namefiles_dict = u.creates_filenames_dict(cfginst.instrument, namefiles_dict, cfg)
 
+# Todo: make that if I want to work on an instrument, trainer calls getprepare to get the data if not present
 #loading data
 assert os.path.exists(namefiles_dict["base_data_folder_name"]), "Base data folder DO NOT exists!"
-train_filename = namefiles_dict["train_filename"]
-valid_filename = namefiles_dict["valid_filename"]
-test_filename = namefiles_dict["test_filename"]
-train_labl_filename = namefiles_dict["train_labl_filename"]
-valid_labl_filename = namefiles_dict["valid_labl_filename"]
-test_labl_filename = namefiles_dict["test_labl_filename"]
-
-train_data = pd.read_csv(train_filename, index_col=None, header=0)
-test_data = pd.read_csv(test_filename, index_col=None, header=0)
+train_data = pd.read_csv(namefiles_dict["train_filename"], index_col=None, header=0)
+test_data = pd.read_csv(namefiles_dict["test_filename"], index_col=None, header=0)
 # valid not used for now, using keras support but that uses
 # std and mean computed on the train+valid data
-train_labels = pd.read_csv(train_labl_filename,index_col=None, header=0)
-test_labels = pd.read_csv(test_labl_filename, index_col=None, header=0)
+train_labels = pd.read_csv(namefiles_dict["train_labl_filename"],index_col=None, header=0)
+test_labels = pd.read_csv(namefiles_dict["test_labl_filename"], index_col=None, header=0)
 
+# Todo: make this step unified and linked to instrument specific configuration
 # exctract relevant columns for training (features!)
 all_cols = train_data.columns
 lagged_cols = []
@@ -49,7 +45,6 @@ print(lagged_cols)
 print("how many Lagged columns:")
 print(len(lagged_cols))
 print(train_data.head())
-
 
 assert (not train_data[lagged_cols].isnull().values.any()), "NANs in Training Data"
 assert (not train_labels["dir"].isnull().values.any()), "NANs in LABELS"
@@ -75,17 +70,13 @@ model.evaluate(train_data[lagged_cols], train_labels["dir"], verbose=True) # eva
 # testing predictions
 print("main: testing predictions for later trading applications")
 pred = model.predict(train_data[lagged_cols], verbose=True)
-# print("cols are: ",lagged_cols)
-# print("they are {}".format(len(lagged_cols)))
-# print(train_data[lagged_cols])
 print(pred)
 
 print("main: valuating the model on out-of-sample data (test data)")
 model.evaluate(test_data[lagged_cols], test_labels["dir"], verbose=True)
 
 # Todo: save the model under folder for specific configuration (See conf_name under EUR_USD_1.py)
-
-model_folder = cfg.proj_path + "/TrainedModels/" + instrument
+model_folder = namefiles_dict["model_folder"]
 if not os.path.exists(model_folder):
     logging.info("trainer: specific model folder does not exist: creating it...")
     os.mkdir(model_folder)

@@ -9,7 +9,7 @@ import os
 import logging
 
 instrument = "EUR_PLN"
-conf_name = instrument + "_1"
+conf_name = instrument + "_2" # Change this according to the config file name!
 brl = "1min"  # bar lenght for resampling
 window = 10
 sma_int = 5
