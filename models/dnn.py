@@ -25,7 +25,6 @@ def cw(df):
 
 
 optimizer = Adam(lr=0.0001)
-optimz = tf.keras.optimizers.Adam(learning_rate=0.0001)
 
 
 def dnn1(hu_list=(128, 32, 16),
@@ -65,6 +64,7 @@ def dnn1(hu_list=(128, 32, 16),
 
     model.add(Dense(1, activation="sigmoid"))
     model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
+    model.summary()
     return model
 
 
@@ -96,5 +96,5 @@ def create_better_model(hu_list=[64, 32, 16],
     # Final binary output
     model.add(tf.keras.layers.Dense(1, activation="sigmoid"))
 
-    model.compile(loss="binary_crossentropy", optimizer=optimz, metrics=['acc'])
+    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
     return model

@@ -16,7 +16,7 @@ sma_int = 5
 hspread_ptc = 0.00007
 labels = ["dir", "profit_over_spread", "loss_over_spread"]
 features = ["dir", "sma", "boll", "min", "max", "mom", "vol"]#,
-                 #"profit_over_spread", "loss_over_spread"]
+                 #"profit_over_spread", "loss_over_spread"] # Todo: reintegrate these as features
 
 granul="S5"
 days = 20

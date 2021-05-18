@@ -14,7 +14,13 @@ Done first version:
 - try with other instruments
 
 
-Todo:
+Todo (Backlog):
+
+- data format used for Data folder is not perfect for time-aware approaches (RNN/Transf): review!
+
+- make training in trainer controlled by a class that uses custom training loop so to be more free to deal with
+additional metrics and other changes...
+
 
 - Why is bollinger often ending up in non-computed/nan???? see in getpreparedata and common/utils.py
   Because dividing by std computed in a window is risky, for some time data is constant for missing data

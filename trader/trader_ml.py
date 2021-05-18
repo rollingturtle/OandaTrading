@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+plt.style.use('seaborn')
 
 import sys
 sys.path.append('../')

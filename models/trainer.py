@@ -1,3 +1,5 @@
+import tensorflow as tf
+from tensorflow import keras
 import pandas as pd
 import logging
 import sys
@@ -8,10 +10,19 @@ sys.path.append('../')
 
 import configs.config as cfg
 from models.dnn import *
+from models.recurrent_models import *
 import configs.EUR_PLN_2 as cfginst
 import common.utils as u
 
 # Todo: make the trainer a class that takes in instrument configuration file and kind of model to train
+
+def find_string(list_of_strings, s):
+    index = -1
+    for i,ss in enumerate(list_of_strings):
+        if s in ss:
+            index = i
+            return list_of_strings[index]
+    return -1
 
 set_seeds(100)
 
@@ -40,9 +51,20 @@ for col in all_cols:
     if 'lag' in col:
         lagged_cols.append(col)
 
-print("Lagged columns which are the input to the model")
+# reoder features
+lagged_cols_reordered = []
+for lag in range(1,cfginst.lags+1):
+    for feat in cfginst.features:
+        r = find_string(all_cols, feat + "_lag_" + str(lag))
+        if r != -1:
+            lagged_cols_reordered.append(r)
+
+
+print("reodered features are:", lagged_cols_reordered)
+
+print("trainer.py: Lagged columns which are the input to the model:")
 print(lagged_cols)
-print("how many Lagged columns:")
+print("trainer.py: how many Lagged columns:")
 print(len(lagged_cols))
 print(train_data.head())
 
@@ -50,18 +72,40 @@ assert (not train_data[lagged_cols].isnull().values.any()), "NANs in Training Da
 assert (not train_labels["dir"].isnull().values.any()), "NANs in LABELS"
 
 logging.info("Creating the NN model...")
-model = dnn1(dropout = True,
-             rate=0.1,
-             input_dim = len(lagged_cols))
-
 logging.info("Training the NN model...")
-model.fit(x = train_data[lagged_cols],
-          y = train_labels["dir"],
-          epochs = 53,
-          verbose = True,
-          validation_split = 0.1,
-          shuffle = True,
-          class_weight = cw(train_labels))
+DNN=False
+LSTM=True
+
+
+if DNN:
+    model = dnn1(dropout = True,
+                 rate=0.1,
+                 input_dim = len(lagged_cols))
+    model.fit(x = train_data[lagged_cols],
+              y = train_labels["dir"],
+              epochs = 53,
+              verbose = True,
+              validation_split = 0.1,
+              shuffle = True,
+              batch_size=64,
+              class_weight = cw(train_labels))
+
+else: #LSTM:
+    numpy_train = train_data[lagged_cols_reordered].\
+        to_numpy().reshape(-1, len(cfginst.features), cfginst.lags)
+    print("numpy_train.shape ",numpy_train.shape)
+    model = LSTM_dnn(dropout = True,
+                 rate=0.1,
+                 inputs = numpy_train)
+
+    model.fit(x = numpy_train, #train_data[lagged_cols],
+              y = train_labels["dir"].to_numpy(),
+              epochs = 53,
+              verbose = True,
+              validation_split = 0.1,
+              shuffle = True,
+              batch_size=64,
+              class_weight = cw(train_labels))
 
 print("\n")
 print("main: Evaluating the model on in-sample data (training data)")
