@@ -19,9 +19,9 @@ features = ["dir", "sma", "boll", "min", "max", "mom", "vol"]#,
                  #"profit_over_spread", "loss_over_spread"]
 
 granul="S5"
-days = 20
+days = 30
 days_inference = 3
-lags = 5
+lags = 10
 split_pcs = (0.7, 0.15, 0.15)
 stop_trading = 300
 

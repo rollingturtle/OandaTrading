@@ -3,7 +3,7 @@ import tpqoa
 import pickle
 from datetime import datetime, timedelta
 from models.model import set_seeds
-import keras
+from tensorflow import keras
 import logging
 import numpy as np
 import matplotlib

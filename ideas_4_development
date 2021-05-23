@@ -18,29 +18,25 @@ Done first version:
 
 Todo (Backlog):
 
-- make trainer.py a virtual class: then inherit and specialize for each model in models
+- move the project to juniper notebooks to visualize, still remaining as pycharm project
+as jpnb: trader_ml.py, trainer.py, getpreparedata.py
+
+- make trainer.py a parent class: then inherit and specialize for each model in models
 
 - data format used for Data folder is not perfect for time-aware approaches (RNN/Transf): review!
 
 - get data to calculate the spread, and with the assumption that spread does not change much
  include spread in strategy, or simply make sure trading happens in busy hours when spread is low
 
-- make training in trainer controlled by a class that uses custom training loop so to be more free to deal with
-additional metrics and other changes...
-
-
 - Why is bollinger often ending up in non-computed/nan???? see in getpreparedata and common/utils.py
   Because dividing by std computed in a window is risky, for some time data is constant for missing data
    and therefore std goes to 0. Review how to work with it, for now replaced / with *...
 
-- instrument configuration: it muts be an input file and not a python module
+- instrument configuration: it must be an input file and not a python module
 
 - TESTs
 
 - review why ticks are so async... what is the origin of the asynchronicity?
-
-- move the project to juniper notebooks to visualize, still remaining as pycharm project
-as jpnb: trader_ml.py, trainer.py, getpreparedata.py
 
 - add more tasks to DNN, add loss function components and optimize the overall loss
 

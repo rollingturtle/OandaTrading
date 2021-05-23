@@ -1,5 +1,4 @@
-import tensorflow as tf
-from tensorflow import keras
+from abc import ABCMeta, abstractmethod
 import pandas as pd
 import logging
 import sys
@@ -16,10 +15,19 @@ import configs.config as cfg
 import models.model as m
 import common.utils as u
 
-if hasattr(m, "dnn1"):
-    print("I can look into module m")
 
 ################################ Trainer Class
+
+class Trainer(metaclass=ABCMeta):
+    @abstractmethod
+    def act(self,
+            position=0,
+            prob_up=0.5,
+            thr_up=.53,
+            thr_low=.47,
+            units=1000):
+        pass
+
 
 class DL_Trainer():
     '''
@@ -84,8 +92,10 @@ class DL_Trainer():
         print("load_train_data: how many Lagged columns:")
         print(len(self.lagged_cols))
         print("self.train_data.head()\n",self.train_data.head())
-        assert (not self.train_data[self.lagged_cols].isnull().values.any()), "NANs in Training Data"
-        assert (not self.train_labels["dir"].isnull().values.any()), "NANs in LABELS"
+        assert (not self.train_data[self.lagged_cols].isnull().values.any()), \
+            "NANs in Training Data"
+        assert (not self.train_labels["dir"].isnull().values.any()), \
+            "NANs in LABELS"
         return # train and test data loaded. Validation carved out by Keras from training data
 
     def set_model(self):
@@ -109,10 +119,10 @@ class DL_Trainer():
                                     inputs = numpy_train)
         return
 
-    def train_model(self):
+    def train_model(self, epochs=30):
         r = self.model.fit(x=self.train_data[self.lagged_cols],
                       y=self.train_labels["dir"],
-                      epochs=10,  # Todo make it a parameter!
+                      epochs=epochs,  # Todo make it a parameter!
                       verbose=True,
                       validation_split=0.1,  # Todo: pass here the validation data prepared already!
                       shuffle=True,
@@ -207,7 +217,7 @@ if __name__ == "__main__":
     model_trainer.set_model()
 
     logging.info("Training the NN model...")
-    model_trainer.train_model()
+    model_trainer.train_model(epochs=70)
 
     logging.info("Evaluating the NN model...")
     model_trainer.evaluate_model()
