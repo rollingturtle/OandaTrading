@@ -274,14 +274,14 @@ class OandaDataCollector():
 
 
 if __name__ == '__main__':
-
     '''
     __main__ execute functional test, or it can be used to download data for later use
     '''
+
     ####  IMPORTANT ####
     ####  change this import pointing to the
     ####  wanted/needed configuration
-    import configs.EUR_PLN_2 as cfginst
+    import configs.EUR_USD_1 as cfginst
 
     # get or generate datafiles files and folders, if do not exist
     namefiles_dict = {}

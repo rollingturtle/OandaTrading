@@ -18,6 +18,8 @@ Done first version:
 
 Todo (Backlog):
 
+- make trainer.py a virtual class: then inherit and specialize for each model in models
+
 - data format used for Data folder is not perfect for time-aware approaches (RNN/Transf): review!
 
 - get data to calculate the spread, and with the assumption that spread does not change much

@@ -2,7 +2,7 @@ import pandas as pd
 import tpqoa
 import pickle
 from datetime import datetime, timedelta
-from models.dnn import set_seeds
+from models.model import set_seeds
 import keras
 import logging
 import numpy as np
@@ -237,7 +237,9 @@ class DNNTrader(tpqoa.tpqoa):
 
 if __name__ == "__main__":
 
-    # change this import pointing to the wanted/needed configuration for the main to work
+    ####  IMPORTANT ####
+    ####  change this import pointing to the
+    ####  wanted/needed configuration
     import configs.EUR_PLN_2 as cfginst
 
     instrument = cfginst.instrument
@@ -253,6 +255,9 @@ if __name__ == "__main__":
     model = keras.models.load_model(cfg.trained_models_path +
                                     instrument + "/DNN_model.h5")
     # create trader object using instrument configuration details
+
+    print("Layers of model being used are: ")
+    print(model.layers)
     trader = DNNTrader(cfg.conf_file,
                        instrument=instrument,
                        bar_length=cfginst.brl,
