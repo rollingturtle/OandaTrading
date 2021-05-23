@@ -73,18 +73,18 @@ class OandaDataCollector():
         '''load raw data and process data from file'''
         # raw data
         self.raw_data = pd.read_csv(self.namefiles_dict["raw_data_file_name"],
-                                    index_col=None,header=0)
+                                    index_col="time", parse_dates=True, header=0)
         self.raw_data_featured_resampled = pd.read_csv(
             self.namefiles_dict["raw_data_featured_resampled_file_name"],
-                                    index_col=None, header=0)
-
+                                    index_col="time", parse_dates=True, header=0)
         # loading 3 datasets, standardized, which contains also the columns for labels
         self.train_ds_std = pd.read_csv(self.namefiles_dict["train_filename"],
-                                        index_col=None, header=0)
+                                    index_col="time", parse_dates=True, header=0)
         self.validation_ds_std = pd.read_csv(self.namefiles_dict["valid_filename"],
-                                        index_col=None, header=0)
+                                    index_col="time", parse_dates=True, header=0)
         self.test_ds_std = pd.read_csv(self.namefiles_dict["test_filename"],
-                                       index_col=None,header=0)
+                                    index_col="time", parse_dates=True, header=0)
+        # normalization params
         self.params = pickle.load(open(self.namefiles_dict["train_folder"]  + "params.pkl", "rb"))
         return
 
@@ -128,11 +128,9 @@ class OandaDataCollector():
         self.raw_data.rename(columns={"c": self.instrument}, inplace=True)
         print("get_most_recent: self.raw_data.info() ", self.raw_data.info())
         print("get_most_recent: self.raw_data ", self.raw_data)
-
-        whnull = self.raw_data.isnull()
-        row_has_nan = whnull.any(axis=1)
-        nanrows = self.raw_data[row_has_nan]
-
+        # whnull = self.raw_data.isnull()
+        # row_has_nan = whnull.any(axis=1)
+        # nanrows = self.raw_data[row_has_nan]
         assert (not self.raw_data.isnull().values.any()), \
             "get_most_recent: 1-NANs in self.raw_data_featured" #
         return
@@ -148,11 +146,9 @@ class OandaDataCollector():
             "make_features: the dataframe lenght is not greater than the Simple Moving Average interval"
         assert (len(df[ref_price]) > window), \
             "make_features: the dataframe lenght is not greater than the Bollinger window"
-
         self.raw_data_featured = u.make_features(df, sma_int, window, hspread_ptc, ref_price=ref_price )
         logging.info("make_features: created new features and added to self.raw_data_featured")
         print("make_features: self.raw_data_featured.columns ", self.raw_data_featured.columns)
-
         assert (not self.raw_data_featured.isnull().values.any()), \
             "make_features: 1-NANs in self.raw_data_featured"
         return
@@ -164,7 +160,6 @@ class OandaDataCollector():
         '''
         assert (not self.raw_data_featured.isnull().values.any()), \
             "make_lagged_features: 1-NANs in self.raw_data_featured"
-
         self.raw_data_featured = u.make_lagged_features(self.raw_data_featured,
                                                self.features,
                                                lags=lags)
@@ -187,16 +182,13 @@ class OandaDataCollector():
         # iloc to remove the last bar/row typically incomplete
         assert (not self.raw_data_featured.isnull().values.any()), \
             "resample_data: 1-NANs in self.raw_data_featured"
-
         self.raw_data_featured_resampled = \
             self.raw_data_featured.resample(bar_length,
                             label = "right").last().dropna().iloc[:-1]
-
         assert (not self.raw_data_featured.isnull().values.any()), \
             "resample_data: 2-NANs in self.raw_data_featured"
         assert (not self.raw_data_featured_resampled.isnull().values.any()), \
             "resample_data: 2-NANs in self.raw_data_featured_resampled"
-
         logging.info("resample_data: resampled the just created new features, into self.raw_data_featured_resampled")
         return
 
@@ -208,12 +200,10 @@ class OandaDataCollector():
             df = self.raw_data_featured_resampled
         else:
             logging.info("make_3_datasets: ERROR: self.raw_data_featured_resampled was empty!")
-            #df = self.raw_data
             exit()
         assert (sum(split_pcs) == 1), "make_3_datasets: split points are not dividing the unity"
         assert (not self.raw_data_featured_resampled.isnull().values.any()), \
             "make_3_datasets: NANs in self.raw_data_featured_resampled"
-
         train_split = int(len(df) * split_pcs[0])
         val_split = int(len(df) *(split_pcs[0] + split_pcs[1]))
         self.train_ds = df.iloc[:train_split].copy()
@@ -244,31 +234,41 @@ class OandaDataCollector():
         logging.info("save_to_file: Saving raw data and resampled raw data to {} and to {}".format(
                 self.namefiles_dict["raw_data_file_name"],
                   self.namefiles_dict["raw_data_featured_resampled_file_name"]))
-
-        #TODO: should save index=True for self.namefiles_dict["raw_data_file_name"] so as to be free to resample at different
+        #TODO: should save index=True for self.namefiles_dict["raw_data_file_name"]
+        # so as to be free to resample at different
         # frequency later on, as if I want to add a new feature, I start from raw data, add the feature
         # make the lagged versions of all of them and then resample to get the frequency
         # so in order to get the new feature, I need resampling to work on the data I saved previously
         # therefore I need to save here the index, so resampling has the reference values...
         self.raw_data.to_csv(self.namefiles_dict["raw_data_file_name"],
-                             index = False, header=True)
-        self.raw_data_featured_resampled.to_csv(self.namefiles_dict["raw_data_featured_resampled_file_name"],
-                                                index = False, header=True)
-
-        logging.info('save_to_file: Saving data input files to {}'.format(self.namefiles_dict["base_data_folder_name"]))
-        self.train_ds_std.to_csv(self.namefiles_dict["train_filename"], index = False, header=True)
-        logging.info("save_to_file: Save train_ds_std to {}".format(self.namefiles_dict["train_filename"]))
-        self.validation_ds_std.to_csv(self.namefiles_dict["valid_filename"], index = False, header=True)
-        logging.info("save_to_file: Save validation_ds_std to {}".format(self.namefiles_dict["valid_filename"]))
-        self.test_ds_std.to_csv(self.namefiles_dict["test_filename"], index = False, header=True)
-        logging.info("save_to_file: Save test_ds_std to {}".format(self.namefiles_dict["test_filename"]))
-
-        logging.info('save_to_file: saving data label files to {}'.format(self.namefiles_dict["base_data_folder_name"]))
-        self.train_ds[self.labels].to_csv(self.namefiles_dict["train_labl_filename"], index = False, header=True)
-        self.validation_ds[self.labels].to_csv(self.namefiles_dict["valid_labl_filename"], index = False, header=True)
-        self.test_ds[self.labels].to_csv(self.namefiles_dict["test_labl_filename"], index = False, header=True)
-
-        logging.info('save_to_file: saving params to file {}'.format(self.namefiles_dict["train_folder"]  + "params.pkl"))
+                             index = True, header=True)
+        self.raw_data_featured_resampled.to_csv(
+            self.namefiles_dict["raw_data_featured_resampled_file_name"],
+                             index = True, header=True)
+        logging.info('save_to_file: Saving data input files to {}'.format(
+            self.namefiles_dict["base_data_folder_name"]))
+        self.train_ds_std.to_csv(self.namefiles_dict["train_filename"],
+                             index = True, header=True)
+        logging.info("save_to_file: Save train_ds_std to {}".format(
+            self.namefiles_dict["train_filename"]))
+        self.validation_ds_std.to_csv(self.namefiles_dict["valid_filename"],
+                             index = True, header=True)
+        logging.info("save_to_file: Save validation_ds_std to {}".format(
+            self.namefiles_dict["valid_filename"]))
+        self.test_ds_std.to_csv(self.namefiles_dict["test_filename"],
+                             index = True, header=True)
+        logging.info("save_to_file: Save test_ds_std to {}".format(
+            self.namefiles_dict["test_filename"]))
+        logging.info('save_to_file: saving data label files to {}'.format(
+            self.namefiles_dict["base_data_folder_name"]))
+        self.train_ds[self.labels].to_csv(self.namefiles_dict["train_labl_filename"],
+                             index = True, header=True)
+        self.validation_ds[self.labels].to_csv(self.namefiles_dict["valid_labl_filename"],
+                             index = True, header=True)
+        self.test_ds[self.labels].to_csv(self.namefiles_dict["test_labl_filename"],
+                             index = True, header=True)
+        logging.info('save_to_file: saving params to file {}'.format(
+            self.namefiles_dict["train_folder"]  + "params.pkl"))
         pickle.dump(self.params, open(self.namefiles_dict["train_folder"]  + "params.pkl", "wb"))
         return
 
@@ -278,7 +278,9 @@ if __name__ == '__main__':
     '''
     __main__ execute functional test, or it can be used to download data for later use
     '''
-    # change this import pointing to the wanted/needed configuration for the main to work
+    ####  IMPORTANT ####
+    ####  change this import pointing to the
+    ####  wanted/needed configuration
     import configs.EUR_PLN_2 as cfginst
 
     # get or generate datafiles files and folders, if do not exist

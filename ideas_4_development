@@ -13,10 +13,15 @@ Done first version:
 
 - try with other instruments
 
+- use data representation that keeps time reference so to have time perspective in charts and evaluation
+
 
 Todo (Backlog):
 
 - data format used for Data folder is not perfect for time-aware approaches (RNN/Transf): review!
+
+- get data to calculate the spread, and with the assumption that spread does not change much
+ include spread in strategy, or simply make sure trading happens in busy hours when spread is low
 
 - make training in trainer controlled by a class that uses custom training loop so to be more free to deal with
 additional metrics and other changes...
@@ -29,7 +34,6 @@ additional metrics and other changes...
 - instrument configuration: it muts be an input file and not a python module
 
 - TESTs
-- use data representation that keeps time reference so to have time perspective in charts and evaluation
 
 - review why ticks are so async... what is the origin of the asynchronicity?
 

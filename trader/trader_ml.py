@@ -39,7 +39,6 @@ class DNNTrader(tpqoa.tpqoa):
                  l_prob_th):
 
         super().__init__(conf_file)
-
         self.position = 0
         self.instrument = instrument
         self.window = window
@@ -60,7 +59,6 @@ class DNNTrader(tpqoa.tpqoa):
         self.features = features
         self.h_prob_th = h_prob_th
         self.l_prob_th = l_prob_th
-
         self.strategy = Strategy_1(instrument=self.instrument,
                                    order_fun= self.create_order, #partial(self.create_order,
                                                 #      self.instrument, suppress=True, ret=True),
@@ -74,8 +72,7 @@ class DNNTrader(tpqoa.tpqoa):
         '''
         #overwrite strategy to set test mode TODO: change this with testing before changing
         self.strategy = Strategy_1(instrument=self.instrument,
-                                   order_fun=self.create_order,  # partial(self.create_order,
-                                   #      self.instrument, suppress=True, ret=True),
+                                   order_fun=self.create_order,
                                    report_fun=self.report_trade,
                                    live_or_test="test")
         test_outs = pd.DataFrame()
@@ -121,8 +118,7 @@ class DNNTrader(tpqoa.tpqoa):
         # reset strategy to live
         #overwrite strategy to set test mode
         self.strategy = Strategy_1(instrument=self.instrument,
-                                   order_fun=self.create_order,  # partial(self.create_order,
-                                   #      self.instrument, suppress=True, ret=True),
+                                   order_fun=self.create_order,
                                    report_fun=self.report_trade,
                                    live_or_test="live")
         return round(perf, 6), round(outperf, 6)
@@ -194,7 +190,6 @@ class DNNTrader(tpqoa.tpqoa):
             return df["proba"]
         else:
             return
-
 
     def on_success(self, time, bid, ask):
         print(self.ticks, end=" ")
@@ -291,14 +286,16 @@ if __name__ == "__main__":
     else: # TESTING
         # loading data
         assert os.path.exists(namefiles_dict["base_data_folder_name"]), "Base data folder DO NOT exists!"
-        train_data = pd.read_csv(namefiles_dict["train_filename"], index_col=None, header=0)
-        test_data = pd.read_csv(namefiles_dict["test_filename"], index_col=None, header=0)
+        train_data = pd.read_csv(namefiles_dict["train_filename"],
+                                 index_col="time", parse_dates=True, header=0)
+        test_data = pd.read_csv(namefiles_dict["test_filename"],
+                                index_col="time", parse_dates=True, header=0)
         # valid not used for now, using keras support but that uses
         # std and mean computed on the train+valid data
         train_labels = pd.read_csv(namefiles_dict["train_labl_filename"],
-                                   index_col=None, header=0)
+                                   index_col="time", parse_dates=True, header=0)
         test_labels = pd.read_csv(namefiles_dict["test_labl_filename"],
-                                  index_col=None, header=0)
+                                  index_col="time", parse_dates=True, header=0)
 
         #trader.prepare_data() ### necessary? maybe not if I take data prepared by getpreparedata.py
         if BCKTESTING:
