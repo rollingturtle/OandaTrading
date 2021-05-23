@@ -7,7 +7,8 @@ from tensorflow import keras
 import logging
 import numpy as np
 import matplotlib
-matplotlib.use('TkAgg')
+if __name__ == "__main__":
+    matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 plt.style.use('seaborn')
 
@@ -109,11 +110,15 @@ class DNNTrader(tpqoa.tpqoa):
         # todo: review why figures are not shown as expected
         print("plotting cumulative results of buy&hold and strategy")
         title = "{} | Transaction Cost = {}".format(self.instrument, self.hspread_ptc)
-        results[["cstrategy",  "creturns", "cstrategy_gross"]].plot(title=title, figsize=(12, 8))
+        results[["cstrategy",  "creturns", "cstrategy_gross"]].\
+            plot(title=title, figsize=(12, 8))
         plt.show()
-        plt.figure()
-        plt.plot(test_outs["trades"])
+        plt.figure(figsize=(12, 8))
+        plt.title("positions")
+        #plt.plot(test_outs["trades"])
         plt.plot(test_outs["position"])
+        plt.xlabel("time")
+        plt.ylabel("positions")
         plt.show()
         # reset strategy to live
         #overwrite strategy to set test mode

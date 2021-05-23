@@ -4,7 +4,8 @@ import logging
 import sys
 import os
 import matplotlib
-matplotlib.use('TkAgg')
+if __name__ == "__main__":
+    matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 plt.style.use('seaborn')
 
@@ -18,15 +19,15 @@ import common.utils as u
 
 ################################ Trainer Class
 
-class Trainer(metaclass=ABCMeta):
-    @abstractmethod
-    def act(self,
-            position=0,
-            prob_up=0.5,
-            thr_up=.53,
-            thr_low=.47,
-            units=1000):
-        pass
+# class Trainer(metaclass=ABCMeta):
+#     @abstractmethod
+#     def act(self,
+#             position=0,
+#             prob_up=0.5,
+#             thr_up=.53,
+#             thr_low=.47,
+#             units=1000):
+#         pass
 
 
 class DL_Trainer():
