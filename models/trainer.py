@@ -55,6 +55,8 @@ class DL_Trainer():
         self.model = None
         self.train_data = None
         self.test_data = None
+        self.validation_data = None
+        self.validation_labels = None
         self.train_labels = None
         self.test_labels = None
         self.lagged_cols = []
@@ -68,11 +70,14 @@ class DL_Trainer():
                                    index_col="time", parse_dates=True, header=0)
         self.test_data = pd.read_csv(self.namefiles_dict["test_filename"],
                                    index_col="time", parse_dates=True, header=0)
-        # valid not used for now, using keras support but that uses
-        # std and mean computed on the train+valid data
+        self.validation_data = pd.read_csv(self.namefiles_dict["valid_filename"],
+                                   index_col="time", parse_dates=True, header=0)
+
         self.train_labels = pd.read_csv(self.namefiles_dict["train_labl_filename"],
                                    index_col="time", parse_dates=True, header=0)
         self.test_labels = pd.read_csv(self.namefiles_dict["test_labl_filename"],
+                                   index_col="time", parse_dates=True, header=0)
+        self.validation_labels = pd.read_csv(self.namefiles_dict["valid_labl_filename"],
                                    index_col="time", parse_dates=True, header=0)
 
         # Todo: make this step unified and linked to instrument specific configuration
@@ -104,33 +109,37 @@ class DL_Trainer():
             self.model = m.dnn1(dropout = True,
                               rate=0.1,
                               input_dim = len(self.lagged_cols))
-            # visualize some details of the model NOT YET TRAINED
-            # get some visualization before learning (on weights)
-            plt.hist(self.model.layers[0].get_weights()[0])
-            plt.show()
-            plt.figure()
-
-            plt.hist(self.model.layers[0].get_weights()[1])
-            plt.show()
-            plt.figure()
-
         elif self.model_id == "LSTM_dnn":  #Todo: review if makes sense to inherit for each model...
             self.model = m.LSTM_dnn(dropout = True,
                                     rate=0.1,
                                     inputs = numpy_train)
+        elif self.model_id == "ffn":
+            self.model = m.ffn(self.train_data[self.lagged_cols],
+                              rate=0.1)
+
+        # visualize some details of the model NOT YET TRAINED
+        # get some visualization before learning (on weights)
+        # Todo: do this better to generate more informative insight
+        plt.hist(self.model.layers[2].get_weights()[0])
+        plt.show()
+        plt.figure()
+
+        plt.hist(self.model.layers[2].get_weights()[1])
+        plt.show()
+        plt.figure()
         return
 
-    def train_model(self, epochs=30):
+    def train_model(self, epochs=30):  # Todo: explode this using gradient_tape
         r = self.model.fit(x=self.train_data[self.lagged_cols],
                       y=self.train_labels["dir"],
-                      epochs=epochs,  # Todo make it a parameter!
+                      epochs=epochs,
                       verbose=True,
-                      validation_split=0.1,  # Todo: pass here the validation data prepared already!
+                      validation_data=(self.validation_data[self.lagged_cols], self.validation_labels["dir"]),
                       shuffle=True,
                       batch_size=64,
                       class_weight=m.cw(self.train_labels))
         # get some visualization of the effect of learning (on weights, loss, acc)
-        plt.hist(self.model.layers[0].get_weights()[0])
+        plt.hist(self.model.layers[2].get_weights()[0])
         plt.show()
         plt.figure()
         plt.plot(r.history['loss'], label="loss")
@@ -152,8 +161,9 @@ class DL_Trainer():
             logging.info("trainer: specific model folder does not exist: creating it...")
             os.mkdir(model_folder)
             # Todo add choice to break out?
-            self.model.save(model_folder + "/DNN_model.h5")
-            print("main:Trained model save to " + model_folder + "/DNN_model.h5")
+        model_file_name = model_folder + "/" + str(self.model_id) + ".h5"
+        self.model.save(model_file_name)
+        print(model_file_name)
         return
 
     def evaluate_model(self):
@@ -200,7 +210,7 @@ if __name__ == "__main__":
     ####  IMPORTANT ####
     ####  change this import pointing to the
     ####  wanted/needed configuration
-    import configs.EUR_USD_1 as cfginst
+    import configs.EUR_PLN_1 as cfginst
 
     # set instrument to work with
     instrument = cfginst.instrument
@@ -210,7 +220,7 @@ if __name__ == "__main__":
     namefiles_dict = u.creates_filenames_dict(cfginst.instrument, namefiles_dict, cfg)
 
     # Todo: do this selection better and not via string. This should reference via dict to the model
-    model_id = "dnn1"
+    model_id = "ffn" #""dnn1"
     model_trainer = DL_Trainer(cfginst, model_id)
 
     logging.info("Loading data and creating the NN model...")

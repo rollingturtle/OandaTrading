@@ -16,10 +16,14 @@ Done first version:
 - use data representation that keeps time reference so to have time perspective in charts and evaluation
 
 
-Todo (Backlog):
-
 - move the project to juniper notebooks to visualize, still remaining as pycharm project
 as jpnb: trader_ml.py, trainer.py, getpreparedata.py
+
+Todo (Backlog):
+
+- review dimensionality and balance of feature values
+
+-  add confusion matrix generation in trainer (tf2.0 course ann mnist)
 
 - make trainer.py a parent class: then inherit and specialize for each model in models
 

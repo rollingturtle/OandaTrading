@@ -2,8 +2,8 @@ import random
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Input
+from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.regularizers import l1, l2
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import LeakyReLU
@@ -25,6 +25,24 @@ optimizer = Adam(lr=0.0001)
 #Todo: make the list of available models in a pythonic way... this sucks
 
 ############################# model definitions #################################
+
+
+def ffn(xtrain,
+        rate=0.2,
+        hu_list=(128, 32, 16)):
+    xtrain_numpy = xtrain.to_numpy()
+    i = Input(shape=xtrain_numpy[0].shape)
+    x = i
+    for d in hu_list:
+        x= Dropout(rate, seed=100)(x)
+        x = Dense(d)(x)
+        x = LeakyReLU(alpha=0.05)(x)
+    x = Dense(1, activation="sigmoid")(x)
+
+    model = Model(i, x)
+    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
+    model.summary()
+    return model
 
 def dnn1(hu_list=(128, 32, 16),
          dropout=False,
@@ -94,4 +112,4 @@ def recurrent_VAE():
     pass
 
 
-available_models = {"dnn1": dnn1, "LSTM_dnn": LSTM_dnn }
+available_models = {"dnn1": dnn1, "LSTM_dnn": LSTM_dnn, "ffn": ffn }

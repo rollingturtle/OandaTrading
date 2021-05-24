@@ -245,7 +245,7 @@ if __name__ == "__main__":
     ####  IMPORTANT ####
     ####  change this import pointing to the
     ####  wanted/needed configuration
-    import configs.EUR_PLN_2 as cfginst
+    import configs.EUR_PLN_1 as cfginst
 
     instrument = cfginst.instrument
 
@@ -257,8 +257,9 @@ if __name__ == "__main__":
     mu = params["mu"]
     std = params["std"]
     # load trained model
+    model_id = "ffn" #DNN_model
     model = keras.models.load_model(cfg.trained_models_path +
-                                    instrument + "/DNN_model.h5")
+                                    instrument + "/" + model_id + ".h5")
     # create trader object using instrument configuration details
 
     print("Layers of model being used are: ")
