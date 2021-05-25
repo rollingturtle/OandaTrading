@@ -98,3 +98,10 @@ def creates_filenames_dict(instrument, namefiles_dict, cfg):
     namefiles_dict["test_labl_filename"] = namefiles_dict["test_folder"] + "testlabels.csv"
     namefiles_dict["params"] = namefiles_dict["train_folder"] + "params.pkl"
     return namefiles_dict
+
+def find_string(list_of_strings, s):
+        for i, ss in enumerate(list_of_strings):
+            if s in ss:
+                index = i
+                return list_of_strings[index]
+        return -1

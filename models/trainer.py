@@ -8,6 +8,7 @@ if __name__ == "__main__":
     matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 plt.style.use('seaborn')
+import numpy as np
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 sys.path.append('../')
@@ -105,14 +106,14 @@ class DL_Trainer():
         return # train and test data loaded. Validation carved out by Keras from training data
 
     def set_model(self):
-        if self.model_id == "dnn1":
+        if self.model_id == "dnn1": # Todo: do this using the dictionary of models in model.py
             self.model = m.dnn1(dropout = True,
                               rate=0.1,
                               input_dim = len(self.lagged_cols))
         elif self.model_id == "LSTM_dnn":  #Todo: review if makes sense to inherit for each model...
             self.model = m.LSTM_dnn(dropout = True,
                                     rate=0.1,
-                                    inputs = numpy_train)
+                                    inputs = np.zeros((1, cfginst.lags, len(cfginst.features))))
         elif self.model_id == "ffn":
             self.model = m.ffn(self.train_data[self.lagged_cols],
                               rate=0.1)
@@ -130,14 +131,35 @@ class DL_Trainer():
         return
 
     def train_model(self, epochs=30):  # Todo: explode this using gradient_tape
-        r = self.model.fit(x=self.train_data[self.lagged_cols],
-                      y=self.train_labels["dir"],
-                      epochs=epochs,
-                      verbose=True,
-                      validation_data=(self.validation_data[self.lagged_cols], self.validation_labels["dir"]),
-                      shuffle=True,
+
+        if self.model_id == "ffn" or self.model_id == "ffn": #todo : do this better
+
+            r = self.model.fit(x=self.train_data[self.lagged_cols],
+                          y=self.train_labels["dir"],
+                          epochs=epochs,
+                          verbose=True,
+                          validation_data=(self.validation_data[self.lagged_cols],
+                                           self.validation_labels["dir"]),
+                          shuffle=True,
+                          batch_size=64,
+                          class_weight=m.cw(self.train_labels))
+
+        elif self.model_id == "LSTM_dnn":
+            numpy_train = self.train_data[self.lagged_cols_reordered]. \
+                    to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+            print("numpy_train.shape ",numpy_train.shape)
+
+
+            r = self.model.fit(x = numpy_train,
+                      y = self.train_labels["dir"].to_numpy(),
+                      epochs = epochs,
+                      verbose = True,
+                      validation_split = 0.1,
+                      shuffle = True,
                       batch_size=64,
-                      class_weight=m.cw(self.train_labels))
+                      class_weight = m.cw(self.train_labels))
+
+
         # get some visualization of the effect of learning (on weights, loss, acc)
         plt.hist(self.model.layers[2].get_weights()[0])
         plt.show()
@@ -168,16 +190,31 @@ class DL_Trainer():
 
     def evaluate_model(self):
         print("\n")
-        print("main: Evaluating the model on in-sample data (training data)")
-        self.model.evaluate(self.train_data[self.lagged_cols], self.train_labels["dir"], verbose=True)
-        print("main: valuating the model on out-of-sample data (test data)")
-        self.model.evaluate(self.test_data[self.lagged_cols], self.test_labels["dir"], verbose=True)
-        # Todo: why evaluate does not show the accuracy?
+        if self.model_id == "ffn" or self.model_id == "ffn":  # todo : do this better
+            print("main: Evaluating the model on in-sample data (training data)")
+            self.model.evaluate(self.train_data[self.lagged_cols], self.train_labels["dir"], verbose=True)
+            print("main: valuating the model on out-of-sample data (test data)")
+            self.model.evaluate(self.test_data[self.lagged_cols], self.test_labels["dir"], verbose=True)
+            # Todo: why evaluate does not show the accuracy?
+        elif self.model_id == "LSTM_dnn":
+            print("main: Evaluating the model on in-sample data (training data)")
+            numpy_eval = self.train_data[self.lagged_cols_reordered]. \
+                to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+            self.model.evaluate(numpy_eval, self.train_labels["dir"].to_numpy(), verbose=True)
+            print("main: valuating the model on out-of-sample data (test data)")
+            numpy_test = self.test_data[self.lagged_cols_reordered]. \
+                to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+            self.model.evaluate(numpy_test, self.test_labels["dir"].to_numpy(), verbose=True)
         return
 
     def make_predictions(self):
         print("main: just testing predictions for later trading applications")
-        pred = self.model.predict(self.train_data[self.lagged_cols], verbose=True)
+        if self.model_id == "ffn" or self.model_id == "ffn":  # todo : do this better
+            pred = self.model.predict(self.train_data[self.lagged_cols], verbose=True)
+        elif self.model_id == "LSTM_dnn":
+            numpy_train = self.train_data[self.lagged_cols_reordered]. \
+                to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+            pred = self.model.predict(numpy_train, verbose=True)
         print(pred)
         return
 
@@ -210,7 +247,7 @@ if __name__ == "__main__":
     ####  IMPORTANT ####
     ####  change this import pointing to the
     ####  wanted/needed configuration
-    import configs.EUR_PLN_1 as cfginst
+    import configs.EUR_PLN_2 as cfginst
 
     # set instrument to work with
     instrument = cfginst.instrument
@@ -220,7 +257,7 @@ if __name__ == "__main__":
     namefiles_dict = u.creates_filenames_dict(cfginst.instrument, namefiles_dict, cfg)
 
     # Todo: do this selection better and not via string. This should reference via dict to the model
-    model_id = "ffn" #""dnn1"
+    model_id = "LSTM_dnn" #"ffn" #""dnn1"
     model_trainer = DL_Trainer(cfginst, model_id)
 
     logging.info("Loading data and creating the NN model...")
@@ -228,7 +265,7 @@ if __name__ == "__main__":
     model_trainer.set_model()
 
     logging.info("Training the NN model...")
-    model_trainer.train_model(epochs=70)
+    model_trainer.train_model(epochs=50)
 
     logging.info("Evaluating the NN model...")
     model_trainer.evaluate_model()
@@ -241,53 +278,3 @@ if __name__ == "__main__":
 
     # Todo: would it better to make a parent class for training and inherit from that to create ad-hoc trainers
     # per each model in models?? seems more what I want...
-    #
-    # if DNN:
-    #    ....
-    #
-    # else: #LSTM:
-    #     numpy_train = train_data[lagged_cols_reordered].\
-    #         to_numpy().reshape(-1, len(cfginst.features), cfginst.lags)
-    #     print("numpy_train.shape ",numpy_train.shape)
-    #     model = LSTM_dnn(dropout = True,
-    #                  rate=0.1,
-    #                  inputs = numpy_train)
-    #
-    #     model.fit(x = numpy_train, #train_data[lagged_cols],
-    #               y = train_labels["dir"].to_numpy(),
-    #               epochs = 20,
-    #               verbose = True,
-    #               validation_split = 0.1,
-    #               shuffle = True,
-    #               batch_size=64,
-    #               class_weight = cw(train_labels))
-    #
-    #     print("\n")
-    #     print("main: Evaluating the model on in-sample data (training data)")
-    #     model.evaluate(numpy_train, train_labels["dir"].to_numpy(), verbose=True)
-    #
-    #     # testing predictions
-    #     print("main: testing predictions for later trading applications")
-    #     pred = model.predict(numpy_train, verbose=True)
-    #     print(pred)
-    #
-    #     print("main: valuating the model on out-of-sample data (test data)")
-    #     model.evaluate(numpy_train, test_labels["dir"].to_numpy(), verbose=True)
-    #
-    # model_folder = namefiles_dict["model_folder"]
-    # # Todo: save the model under folder for specific configuration (See conf_name under EUR_USD_1.py)
-    # if not os.path.exists(model_folder):
-    #     logging.info("trainer: specific model folder does not exist: creating it...")
-    #     os.mkdir(model_folder)
-    #
-    #
-    # if DNN:
-    #     # Todo add choice to break out?
-    #     model.save(model_folder + "/DNN_model.h5")
-    #     print("main:Trained model save to " + model_folder +"/DNN_model.h5")
-    # else: #LSTM:
-    #     # Todo add choice to break out?
-    #     model.save(model_folder + "/LSTM_model.h5")
-    #     print("main:Trained model save to " + model_folder + "/LSTM_model.h5")
-    #
-    #

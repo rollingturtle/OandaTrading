@@ -30,7 +30,7 @@ class DNNTrader(tpqoa.tpqoa):
                  window,
                  lags,
                  units,
-                 model,
+                 model_id,
                  mu,
                  std,
                  hspread_ptc,
@@ -46,7 +46,8 @@ class DNNTrader(tpqoa.tpqoa):
         self.bar_length = bar_length
         self.lags = lags
         self.units = units
-        self.model = model
+        self.model_id = model_id
+        self.model = None
         self.mu = mu
         self.std = std
         self.tick_data = pd.DataFrame()
@@ -65,6 +66,16 @@ class DNNTrader(tpqoa.tpqoa):
                                                 #      self.instrument, suppress=True, ret=True),
                                     report_fun= self.report_trade,
                                     live_or_test="live")
+        self.set_model()
+        return
+
+    def set_model(self):
+
+        self.model = keras.models.load_model(cfg.trained_models_path +
+                                        instrument + "/" + model_id + ".h5")
+        print("Layers of model being used are: ")
+        print(self.model.layers)
+        return
 
     def test(self, data, labels):
         '''
@@ -186,15 +197,33 @@ class DNNTrader(tpqoa.tpqoa):
         # get feature columns
         all_cols = self.data.columns
         lagged_cols = []
-        for col in all_cols:
-            if 'lag' in col:
-                lagged_cols.append(col)
-        df["proba"] = self.model.predict(df[lagged_cols])
+        lagged_cols_reordered = []
+
+
+        if self.model_id == "ffn" or self.model_id == "ffn":
+            for col in all_cols:
+                if 'lag' in col:
+                    lagged_cols.append(col)
+            df["proba"] = self.model.predict(df[lagged_cols])
+
+        elif self.model_id == "LSTM_dnn":
+            # reoder features
+            for lag in range(1, self.lags + 1):
+                for feat in self.features:
+                    r = u.find_string(all_cols, feat + "_lag_" + str(lag))
+                    if r != -1:
+                        lagged_cols_reordered.append(r)
+
+            numpy_train = df[lagged_cols_reordered]. \
+                to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+            df["proba"] = self.model.predict(numpy_train, verbose=True)
+
         self.data = df.copy()
         if TESTING:
             return df["proba"]
         else:
             return
+
 
     def on_success(self, time, bid, ask):
         print(self.ticks, end=" ")
@@ -245,7 +274,7 @@ if __name__ == "__main__":
     ####  IMPORTANT ####
     ####  change this import pointing to the
     ####  wanted/needed configuration
-    import configs.EUR_PLN_1 as cfginst
+    import configs.EUR_PLN_2 as cfginst
 
     instrument = cfginst.instrument
 
@@ -257,20 +286,16 @@ if __name__ == "__main__":
     mu = params["mu"]
     std = params["std"]
     # load trained model
-    model_id = "ffn" #DNN_model
-    model = keras.models.load_model(cfg.trained_models_path +
-                                    instrument + "/" + model_id + ".h5")
-    # create trader object using instrument configuration details
+    model_id = "LSTM_dnn" #"ffn" #DNN_model
 
-    print("Layers of model being used are: ")
-    print(model.layers)
+    # create trader object using instrument configuration details
     trader = DNNTrader(cfg.conf_file,
                        instrument=instrument,
                        bar_length=cfginst.brl,
                        window=cfginst.window,
                        lags=cfginst.lags,
                        units=cfginst.units,
-                       model=model,
+                       model_id=model_id,
                        mu=mu, std=std,
                        hspread_ptc=cfginst.hspread_ptc,
                        sma_int=cfginst.sma_int,
@@ -280,7 +305,7 @@ if __name__ == "__main__":
 
     # either live trading or testing (back or fw testing)
     TRADING = 0
-    BCKTESTING, FWTESTING = (1,0) if not TRADING else (0,0)
+    BCKTESTING, FWTESTING = (0,1) if not TRADING else (0,0)
 
     if TRADING:
         trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data

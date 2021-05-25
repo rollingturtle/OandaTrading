@@ -4,30 +4,27 @@ DONE:
 - complete the chain adding the trading part. Start simple with loading the pretrained model, streaming live
 data and setting orders based on the model output(s). See trader.py? o meglio DNNtrader.py
 
-Done first version:
 - prepare real backtesting of the DNNTrader class, which indeed includes a strategy that we
 want to backtest with graphical visualization of the model behaviour on a long period
 
-Done first version:
-- add trading costs!!!! (estimated with fixed half price)
+- add trading costs (estimated with fixed half price)
 
 - try with other instruments
 
 - use data representation that keeps time reference so to have time perspective in charts and evaluation
-
 
 - move the project to juniper notebooks to visualize, still remaining as pycharm project
 as jpnb: trader_ml.py, trainer.py, getpreparedata.py
 
 Todo (Backlog):
 
-- review dimensionality and balance of feature values
-
--  add confusion matrix generation in trainer (tf2.0 course ann mnist)
-
 - make trainer.py a parent class: then inherit and specialize for each model in models
 
 - data format used for Data folder is not perfect for time-aware approaches (RNN/Transf): review!
+
+- review dimensionality and balance of feature values
+
+-  add confusion matrix generation in trainer (tf2.0 course ann mnist)
 
 - get data to calculate the spread, and with the assumption that spread does not change much
  include spread in strategy, or simply make sure trading happens in busy hours when spread is low

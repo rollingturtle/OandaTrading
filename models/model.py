@@ -6,7 +6,7 @@ from tensorflow.keras.layers import Dense, Dropout, Input
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.regularizers import l1, l2
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.layers import LeakyReLU
+from tensorflow.keras.layers import LeakyReLU, ReLU
 
 def set_seeds(seed=100):
     random.seed(seed)
@@ -27,8 +27,35 @@ optimizer = Adam(lr=0.0001)
 ############################# model definitions #################################
 
 
+
+
+'''
+input_img = keras.Input(shape=(28, 28, 1))
+
+x = layers.Conv2D(16, (3, 3), activation='relu', padding='same')(input_img)
+x = layers.MaxPooling2D((2, 2), padding='same')(x)
+x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
+x = layers.MaxPooling2D((2, 2), padding='same')(x)
+x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
+encoded = layers.MaxPooling2D((2, 2), padding='same')(x)
+
+# at this point the representation is (4, 4, 8) i.e. 128-dimensional
+
+x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(encoded)
+x = layers.UpSampling2D((2, 2))(x)
+x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
+x = layers.UpSampling2D((2, 2))(x)
+x = layers.Conv2D(16, (3, 3), activation='relu')(x)
+x = layers.UpSampling2D((2, 2))(x)
+decoded = layers.Conv2D(1, (3, 3), activation='sigmoid', padding='same')(x)
+
+autoencoder = keras.Model(input_img, decoded)
+autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+
+'''
+
 def ffn(xtrain,
-        rate=0.2,
+        rate=0.1,
         hu_list=(128, 32, 16)):
     xtrain_numpy = xtrain.to_numpy()
     i = Input(shape=xtrain_numpy[0].shape)
@@ -36,7 +63,7 @@ def ffn(xtrain,
     for d in hu_list:
         x= Dropout(rate, seed=100)(x)
         x = Dense(d)(x)
-        x = LeakyReLU(alpha=0.05)(x)
+        x = ReLU()(x) #LeakyReLU(alpha=0.05)
     x = Dense(1, activation="sigmoid")(x)
 
     model = Model(i, x)
@@ -90,7 +117,7 @@ def LSTM_dnn(dropout=False,
     #inputs = np.array(inputs)
     #inputs = inputs.reshape(inputs.shape[1], inputs.shape[2])
     inputs = keras.layers.Input(shape=(inputs.shape[1],inputs.shape[2])) #, inputs.shape[2]))
-    lstm_out = keras.layers.LSTM(32)(inputs)
+    lstm_out = keras.layers.LSTM(64)(inputs) # Todo: make dimension of LSTM a param
     outputs = keras.layers.Dense(1, activation="sigmoid")(lstm_out)
     model = keras.Model(inputs=inputs, outputs=outputs)
     model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
