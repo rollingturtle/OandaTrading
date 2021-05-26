@@ -3,26 +3,40 @@
 DONE:
 - complete the chain adding the trading part. Start simple with loading the pretrained model, streaming live
 data and setting orders based on the model output(s). See trader.py? o meglio DNNtrader.py
-
 - prepare real backtesting of the DNNTrader class, which indeed includes a strategy that we
 want to backtest with graphical visualization of the model behaviour on a long period
-
 - add trading costs (estimated with fixed half price)
-
 - try with other instruments
-
 - use data representation that keeps time reference so to have time perspective in charts and evaluation
-
 - move the project to juniper notebooks to visualize, still remaining as pycharm project
 as jpnb: trader_ml.py, trainer.py, getpreparedata.py
+- data format used for Data folder is not perfect for time-aware approaches (RNN/Transf): review!
+- review feature definitions - still bollinger is ill defined in the feaures being used!
+
 
 Todo (Backlog):
 
+-trainer: add callback to save model at best validation accuracy
+
+- consider training on a joint data from a "connected" group of instruments, so to increase
+the correlation that a single instrument has with all the others.
+e.g. EUR_PLN, USD_PLN, EUR_USD and train to make predictions on each of three using all the data
+
+- save models with callback based on eval accuracy
+
+- see how to get the instant spread value from Oanda (2 threads with 2 stream?)
+
+- get bid and ask for historical and do better backtesting/fwtesting with better trading cost estimation
+
 - make trainer.py a parent class: then inherit and specialize for each model in models
 
-- data format used for Data folder is not perfect for time-aware approaches (RNN/Transf): review!
+- strategies: consider exponential decay toward more permissive threshold for a taken position that is
+wrong.... and zero out the counter of decay any time the position is changed...
 
-- review dimensionality and balance of feature values
+- under trained models I should differentiate by conf file and version of it
+
+- review dimensionality and balance of feature values, review features
+
 
 -  add confusion matrix generation in trainer (tf2.0 course ann mnist)
 
@@ -35,7 +49,7 @@ Todo (Backlog):
 
 - instrument configuration: it must be an input file and not a python module
 
-- TESTs
+- TESTs: add test folder and write them with pytest
 
 - review why ticks are so async... what is the origin of the asynchronicity?
 

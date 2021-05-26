@@ -107,36 +107,104 @@ def dnn1(hu_list=(128, 32, 16),
     model.summary()
     return model
 
-
-def LSTM_dnn(dropout=False,
-         rate=0.2,
-         regularize=True,
-         reg=l2(0.0005),  #l1(0.0005)
-         inputs=None):
-
-    #inputs = np.array(inputs)
-    #inputs = inputs.reshape(inputs.shape[1], inputs.shape[2])
-    inputs = keras.layers.Input(shape=(inputs.shape[1],inputs.shape[2])) #, inputs.shape[2]))
-    lstm_out = keras.layers.LSTM(64)(inputs) # Todo: make dimension of LSTM a param
+def LSTM_dnn(dropout=0.0, inputs=None):
+    inputs = keras.layers.Input(shape=(inputs.shape[1],inputs.shape[2]))
+    lstm_out = keras.layers.LSTM(64, dropout=dropout)(inputs) # Todo: make dimension of LSTM a param
     outputs = keras.layers.Dense(1, activation="sigmoid")(lstm_out)
     model = keras.Model(inputs=inputs, outputs=outputs)
     model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
     model.summary()
-
-
-    # # create and fit the LSTM network
-    # model = Sequential()
-    # model.add(LSTM(4, input_shape=(1, look_back)))
-    # model.add(Dense(1))
-    # model.compile(loss='mean_squared_error', optimizer='adam')
-    # model.fit(trainX, trainY, epochs=100, batch_size=1, verbose=2)
     return model
+
+def LSTM_dnn_all_states(dropout=0.0, inputs=None):
+    inputs = keras.layers.Input(shape=(inputs.shape[1],inputs.shape[2]))
+    lstm_out = keras.layers.LSTM(64,dropout=dropout,
+                                 return_sequences=True)(inputs) # Todo: make dimension of LSTM a param
+    lstm_out_flatten = keras.layers.Flatten()(lstm_out)
+    #lstm_out_flatten = keras.layers.AveragePooling1D(pool_size=inputs.shape[1])(lstm_out)
+    outputs = keras.layers.Dense(1, activation="sigmoid")(lstm_out_flatten)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+    model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
+    model.summary()
+    return model
+
 
 def sequence_of_VAEs():
     pass
 
-def recurrent_VAE():
+def recurrent_VAE_cell(inputs, previous_notes):
+    inputs = keras.layers.Input(shape=(inputs.shape[1]))
+    previous_notes = keras.layers.Input(shape=(previous_notes.shape[1],
+                                               previous_notes.shape[2]))
+
+
+
     pass
 
+##### Update this as models are added
+available_models = {"dnn1": dnn1,
+                    "LSTM_dnn": LSTM_dnn,
+                    "LSTM_dnn_all_states": LSTM_dnn_all_states,
+                    "ffn": ffn }
 
-available_models = {"dnn1": dnn1, "LSTM_dnn": LSTM_dnn, "ffn": ffn }
+'''
+https://keras.io/api/layers/recurrent_layers/rnn/
+
+class MinimalRNNCell(keras.layers.Layer):
+
+    def __init__(self, units, **kwargs):
+        self.units = units
+        self.state_size = units
+        super(MinimalRNNCell, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.kernel = self.add_weight(shape=(input_shape[-1], self.units),
+                                      initializer='uniform',
+                                      name='kernel')
+        self.recurrent_kernel = self.add_weight(
+            shape=(self.units, self.units),
+            initializer='uniform',
+            name='recurrent_kernel')
+        self.built = True
+
+    def call(self, inputs, states):
+        prev_output = states[0]
+        h = backend.dot(inputs, self.kernel)
+        output = h + backend.dot(prev_output, self.recurrent_kernel)
+        return output, [output]
+
+# Let's use this cell in a RNN layer:
+
+cell = MinimalRNNCell(32)
+x = keras.Input((None, 5))
+layer = RNN(cell)
+y = layer(x)
+
+# Here's how to use the cell to build a stacked RNN:
+
+cells = [MinimalRNNCell(32), MinimalRNNCell(64)]
+x = keras.Input((None, 5))
+layer = RNN(cells)
+y = layer(x)
+
+
+autoencoder
+input = layers.Input(shape=(28, 28, 1))
+
+# Encoder
+x = layers.Conv2D(32, (3, 3), activation="relu", padding="same")(input)
+x = layers.MaxPooling2D((2, 2), padding="same")(x)
+x = layers.Conv2D(32, (3, 3), activation="relu", padding="same")(x)
+x = layers.MaxPooling2D((2, 2), padding="same")(x)
+
+# Decoder
+x = layers.Conv2DTranspose(32, (3, 3), strides=2, activation="relu", padding="same")(x)
+x = layers.Conv2DTranspose(32, (3, 3), strides=2, activation="relu", padding="same")(x)
+x = layers.Conv2D(1, (3, 3), activation="sigmoid", padding="same")(x)
+
+# Autoencoder
+autoencoder = Model(input, x)
+autoencoder.compile(optimizer="adam", loss="binary_crossentropy")
+autoencoder.summary()
+
+'''

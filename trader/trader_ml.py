@@ -214,8 +214,8 @@ class DNNTrader(tpqoa.tpqoa):
                     if r != -1:
                         lagged_cols_reordered.append(r)
 
-            numpy_train = df[lagged_cols_reordered]. \
-                to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+            numpy_train = self._get_3d_tensor(df[lagged_cols_reordered]. \
+                to_numpy())
             df["proba"] = self.model.predict(numpy_train, verbose=True)
 
         self.data = df.copy()
@@ -224,6 +224,10 @@ class DNNTrader(tpqoa.tpqoa):
         else:
             return
 
+    def _get_3d_tensor(self, twodim_np_tensor):
+
+        return twodim_np_tensor.reshape(-1,
+                                         cfginst.lags, len(cfginst.features))
 
     def on_success(self, time, bid, ask):
         print(self.ticks, end=" ")
@@ -305,7 +309,7 @@ if __name__ == "__main__":
 
     # either live trading or testing (back or fw testing)
     TRADING = 0
-    BCKTESTING, FWTESTING = (0,1) if not TRADING else (0,0)
+    BCKTESTING, FWTESTING = (0,1) if not TRADING else (0,0) #todo: do it better!!
 
     if TRADING:
         trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data

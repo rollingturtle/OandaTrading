@@ -24,7 +24,6 @@ class OandaDataCollector():
                  features,
                  conf_file,
                  namefiles_dict):
-        # Todo: pass here also the instrument conf file, and in that all the filenames below will be defined
 
         self.instrument = instrument
         self.labels = labels #"dir", "profit_over_spread", "loss_over_spread"]
@@ -71,19 +70,21 @@ class OandaDataCollector():
 
     def load_data_from_file(self):
         '''load raw data and process data from file'''
+
         # raw data
-        self.raw_data = pd.read_csv(self.namefiles_dict["raw_data_file_name"],
-                                    index_col="time", parse_dates=True, header=0)
+        self.raw_data = pd.read_csv(
+            self.namefiles_dict["raw_data_file_name"], index_col="time", parse_dates=True, header=0)
         self.raw_data_featured_resampled = pd.read_csv(
-            self.namefiles_dict["raw_data_featured_resampled_file_name"],
-                                    index_col="time", parse_dates=True, header=0)
+            self.namefiles_dict["raw_data_featured_resampled_file_name"], index_col="time", parse_dates=True, header=0)
+
         # loading 3 datasets, standardized, which contains also the columns for labels
-        self.train_ds_std = pd.read_csv(self.namefiles_dict["train_filename"],
-                                    index_col="time", parse_dates=True, header=0)
-        self.validation_ds_std = pd.read_csv(self.namefiles_dict["valid_filename"],
-                                    index_col="time", parse_dates=True, header=0)
-        self.test_ds_std = pd.read_csv(self.namefiles_dict["test_filename"],
-                                    index_col="time", parse_dates=True, header=0)
+        self.train_ds_std = \
+            pd.read_csv(self.namefiles_dict["train_filename"], index_col="time", parse_dates=True, header=0)
+        self.validation_ds_std = \
+            pd.read_csv(self.namefiles_dict["valid_filename"], index_col="time", parse_dates=True, header=0)
+        self.test_ds_std = \
+            pd.read_csv(self.namefiles_dict["test_filename"], index_col="time", parse_dates=True, header=0)
+
         # normalization params
         self.params = pickle.load(open(self.namefiles_dict["train_folder"]  + "params.pkl", "rb"))
         return
@@ -114,8 +115,9 @@ class OandaDataCollector():
         '''
         # set start and end date for historical data retrieval
         now = datetime.utcnow()
-        now = now - timedelta(microseconds = now.microsecond) # Oanda does not deal with microseconds
+        now = now - timedelta(microseconds = now.microsecond)
         past = now - timedelta(days = days)
+
         # get historical data up to now
         logging.info("get_most_recent: calling tpqoa get_history....")
         self.raw_data = self.api_oanda.get_history(
@@ -123,14 +125,11 @@ class OandaDataCollector():
             start = past,
             end = now,
             granularity = granul,
-            price = "M",
+            price = "M", # Taking M implicitly neglets costs? should I get bid and ask here ?
             localize = False).c.dropna().to_frame()
         self.raw_data.rename(columns={"c": self.instrument}, inplace=True)
         print("get_most_recent: self.raw_data.info() ", self.raw_data.info())
-        print("get_most_recent: self.raw_data ", self.raw_data)
-        # whnull = self.raw_data.isnull()
-        # row_has_nan = whnull.any(axis=1)
-        # nanrows = self.raw_data[row_has_nan]
+        #print("get_most_recent: self.raw_data ", self.raw_data)
         assert (not self.raw_data.isnull().values.any()), \
             "get_most_recent: 1-NANs in self.raw_data_featured" #
         return
@@ -141,11 +140,13 @@ class OandaDataCollector():
         '''
         df = self.raw_data.copy()
         ref_price = self.instrument
+
         # Todo: do this check better
         assert (len(df[ref_price]) > sma_int), \
-            "make_features: the dataframe lenght is not greater than the Simple Moving Average interval"
+            "make_features: the dataframe length is not greater than the Simple Moving Average interval"
         assert (len(df[ref_price]) > window), \
-            "make_features: the dataframe lenght is not greater than the Bollinger window"
+            "make_features: the dataframe length is not greater than the Bollinger window"
+
         self.raw_data_featured = u.make_features(df, sma_int, window, hspread_ptc, ref_price=ref_price )
         logging.info("make_features: created new features and added to self.raw_data_featured")
         print("make_features: self.raw_data_featured.columns ", self.raw_data_featured.columns)
@@ -160,9 +161,8 @@ class OandaDataCollector():
         '''
         assert (not self.raw_data_featured.isnull().values.any()), \
             "make_lagged_features: 1-NANs in self.raw_data_featured"
-        self.raw_data_featured = u.make_lagged_features(self.raw_data_featured,
-                                               self.features,
-                                               lags=lags)
+        self.raw_data_featured = \
+            u.make_lagged_features(self.raw_data_featured, self.features,lags=lags)
         assert (not self.raw_data_featured.isnull().values.any()), \
             "make_lagged_features: 2-NANs in self.raw_data_featured"
         logging.info("make_lagged_features: created new features and added to self.raw_data_featured")
@@ -192,7 +192,7 @@ class OandaDataCollector():
         logging.info("resample_data: resampled the just created new features, into self.raw_data_featured_resampled")
         return
 
-    def make_3_datasets(self, split_pcs=(0.8, 0.05, 0.15)):
+    def make_3_datasets(self, split_pcs=(0.7, 0.10, 0.20)):
         '''
         Generate 3 datasets for ML training/evaluation/test and save to files.
         '''
@@ -204,6 +204,7 @@ class OandaDataCollector():
         assert (sum(split_pcs) == 1), "make_3_datasets: split points are not dividing the unity"
         assert (not self.raw_data_featured_resampled.isnull().values.any()), \
             "make_3_datasets: NANs in self.raw_data_featured_resampled"
+
         train_split = int(len(df) * split_pcs[0])
         val_split = int(len(df) *(split_pcs[0] + split_pcs[1]))
         self.train_ds = df.iloc[:train_split].copy()
@@ -231,15 +232,11 @@ class OandaDataCollector():
 
     def save_to_file(self):
         '''Save the previously formed datasets to disk'''
+
         logging.info("save_to_file: Saving raw data and resampled raw data to {} and to {}".format(
                 self.namefiles_dict["raw_data_file_name"],
                   self.namefiles_dict["raw_data_featured_resampled_file_name"]))
-        #TODO: should save index=True for self.namefiles_dict["raw_data_file_name"]
-        # so as to be free to resample at different
-        # frequency later on, as if I want to add a new feature, I start from raw data, add the feature
-        # make the lagged versions of all of them and then resample to get the frequency
-        # so in order to get the new feature, I need resampling to work on the data I saved previously
-        # therefore I need to save here the index, so resampling has the reference values...
+
         self.raw_data.to_csv(self.namefiles_dict["raw_data_file_name"],
                              index = True, header=True)
         self.raw_data_featured_resampled.to_csv(
@@ -269,6 +266,7 @@ class OandaDataCollector():
                              index = True, header=True)
         logging.info('save_to_file: saving params to file {}'.format(
             self.namefiles_dict["train_folder"]  + "params.pkl"))
+
         pickle.dump(self.params, open(self.namefiles_dict["train_folder"]  + "params.pkl", "wb"))
         return
 
@@ -281,7 +279,7 @@ if __name__ == '__main__':
     ####  IMPORTANT ####
     ####  change this import pointing to the
     ####  wanted/needed configuration
-    import configs.EUR_USD_1 as cfginst
+    import configs.EUR_PLN_2 as cfginst
 
     # get or generate datafiles files and folders, if do not exist
     namefiles_dict = {}

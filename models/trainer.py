@@ -88,9 +88,9 @@ class DL_Trainer():
             if 'lag' in col:
                 self.lagged_cols.append(col)
         # reoder features
-        for lag in range(1, self.lags + 1):
+        for lag in range(1, self.lags + 1): # Todo: check this ordering is correct and ok with the reshape below
             for feat in self.features:
-                r = self._find_string(all_cols, feat + "_lag_" + str(lag))
+                r = u.find_string(all_cols, feat + "_lag_" + str(lag))
                 if r != -1:
                     self.lagged_cols_reordered.append(r)
         print("load_train_data: reordered features are:", self.lagged_cols_reordered)
@@ -111,8 +111,10 @@ class DL_Trainer():
                               rate=0.1,
                               input_dim = len(self.lagged_cols))
         elif self.model_id == "LSTM_dnn":  #Todo: review if makes sense to inherit for each model...
-            self.model = m.LSTM_dnn(dropout = True,
-                                    rate=0.1,
+            self.model = m.LSTM_dnn(dropout = 0.2,
+                                    inputs = np.zeros((1, cfginst.lags, len(cfginst.features))))
+        elif self.model_id == "LSTM_dnn_all_states":  #Todo: review if makes sense to inherit for each model...
+            self.model = m.LSTM_dnn_all_states(dropout = 0.2,
                                     inputs = np.zeros((1, cfginst.lags, len(cfginst.features))))
         elif self.model_id == "ffn":
             self.model = m.ffn(self.train_data[self.lagged_cols],
@@ -121,13 +123,13 @@ class DL_Trainer():
         # visualize some details of the model NOT YET TRAINED
         # get some visualization before learning (on weights)
         # Todo: do this better to generate more informative insight
-        plt.hist(self.model.layers[2].get_weights()[0])
-        plt.show()
-        plt.figure()
-
-        plt.hist(self.model.layers[2].get_weights()[1])
-        plt.show()
-        plt.figure()
+        # plt.hist(self.model.layers[2].get_weights()[0])
+        # plt.show()
+        # plt.figure()
+        #
+        # plt.hist(self.model.layers[2].get_weights()[1])
+        # plt.show()
+        # plt.figure()
         return
 
     def train_model(self, epochs=30):  # Todo: explode this using gradient_tape
@@ -144,26 +146,31 @@ class DL_Trainer():
                           batch_size=64,
                           class_weight=m.cw(self.train_labels))
 
-        elif self.model_id == "LSTM_dnn":
-            numpy_train = self.train_data[self.lagged_cols_reordered]. \
-                    to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+        elif self.model_id == "LSTM_dnn" or \
+                self.model_id ==  "LSTM_dnn_all_states":
+            # inputs: A 3D tensor with shape [batch, timesteps, feature].
+
+            numpy_train = self._get_3d_tensor(
+                self.train_data[self.lagged_cols_reordered].to_numpy())
+            numpy_val = self._get_3d_tensor(
+                self.validation_data[self.lagged_cols_reordered].to_numpy())
+
             print("numpy_train.shape ",numpy_train.shape)
-
-
             r = self.model.fit(x = numpy_train,
                       y = self.train_labels["dir"].to_numpy(),
                       epochs = epochs,
                       verbose = True,
-                      validation_split = 0.1,
+                      validation_data=(numpy_val,
+                                       self.validation_labels["dir"].to_numpy()),
                       shuffle = True,
-                      batch_size=64,
+                      batch_size=64,  # Todo make BS a param
                       class_weight = m.cw(self.train_labels))
 
 
         # get some visualization of the effect of learning (on weights, loss, acc)
-        plt.hist(self.model.layers[2].get_weights()[0])
-        plt.show()
-        plt.figure()
+        # plt.hist(self.model.layers[2].get_weights()[0])
+        # plt.show()
+        # plt.figure()
         plt.plot(r.history['loss'], label="loss")
         plt.plot(r.history['val_loss'], label="val_loss")
         plt.legend()
@@ -196,34 +203,42 @@ class DL_Trainer():
             print("main: valuating the model on out-of-sample data (test data)")
             self.model.evaluate(self.test_data[self.lagged_cols], self.test_labels["dir"], verbose=True)
             # Todo: why evaluate does not show the accuracy?
-        elif self.model_id == "LSTM_dnn":
+        elif self.model_id == "LSTM_dnn" or \
+                self.model_id ==  "LSTM_dnn_all_states":
             print("main: Evaluating the model on in-sample data (training data)")
-            numpy_eval = self.train_data[self.lagged_cols_reordered]. \
-                to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+            numpy_eval = self._get_3d_tensor(self.train_data[self.lagged_cols_reordered]. \
+                to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
             self.model.evaluate(numpy_eval, self.train_labels["dir"].to_numpy(), verbose=True)
             print("main: valuating the model on out-of-sample data (test data)")
-            numpy_test = self.test_data[self.lagged_cols_reordered]. \
-                to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+            numpy_test = self._get_3d_tensor(self.test_data[self.lagged_cols_reordered]. \
+                to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
             self.model.evaluate(numpy_test, self.test_labels["dir"].to_numpy(), verbose=True)
         return
+
+
+    def _get_3d_tensor(self, twodim_np_tensor):
+        return twodim_np_tensor.reshape(-1,
+                                        cfginst.lags,
+                                        len(cfginst.features))
 
     def make_predictions(self):
         print("main: just testing predictions for later trading applications")
         if self.model_id == "ffn" or self.model_id == "ffn":  # todo : do this better
             pred = self.model.predict(self.train_data[self.lagged_cols], verbose=True)
-        elif self.model_id == "LSTM_dnn":
-            numpy_train = self.train_data[self.lagged_cols_reordered]. \
-                to_numpy().reshape(-1, cfginst.lags, len(cfginst.features))
+        elif self.model_id == "LSTM_dnn" or \
+                self.model_id ==  "LSTM_dnn_all_states":
+            numpy_train = self._get_3d_tensor(self.train_data[self.lagged_cols_reordered]. \
+                to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
             pred = self.model.predict(numpy_train, verbose=True)
         print(pred)
         return
 
-    def _find_string(self, list_of_strings, s):
-        for i, ss in enumerate(list_of_strings):
-            if s in ss:
-                index = i
-                return list_of_strings[index]
-        return -1
+    # def _find_string(self, list_of_strings, s):
+    #     for i, ss in enumerate(list_of_strings):
+    #         if s in ss:
+    #             index = i
+    #             return list_of_strings[index]
+    #     return -1
 
 
 def find_string(list_of_strings, s):
@@ -257,7 +272,7 @@ if __name__ == "__main__":
     namefiles_dict = u.creates_filenames_dict(cfginst.instrument, namefiles_dict, cfg)
 
     # Todo: do this selection better and not via string. This should reference via dict to the model
-    model_id = "LSTM_dnn" #"ffn" #""dnn1"
+    model_id = "LSTM_dnn_all_states"# "LSTM_dnn" #"ffn" #""dnn1"
     model_trainer = DL_Trainer(cfginst, model_id)
 
     logging.info("Loading data and creating the NN model...")

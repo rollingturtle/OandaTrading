@@ -12,7 +12,7 @@ import sys
 sys.path.append('../')
 
 
-def make_features(df, sma_int, window, hspread_ptc, ref_price):
+def make_features(df, sma_int, window, hspread_ptc, ref_price, epsilon=10e-8):
     ''' Creates features  and labels, using ref_price as input and hspread_ptc
     (estimation of half cost for each position.
      sma_int and window are used to compute sma feature and bollinger related features
@@ -49,13 +49,13 @@ def make_features(df, sma_int, window, hspread_ptc, ref_price):
     # features: watch out for some of them to diverge (boll)
     df["sma"] = df[ref_price].rolling(window).mean() - df[ref_price].rolling(sma_int).mean()
     df["boll1"] = (df[ref_price] - df[ref_price].rolling(window).mean()) #/ df[ref_price].rolling(window).std()
-    df["boll_std"] = df[ref_price].rolling(window).std() # todo: this can go to 0!!!
+    df["boll_std"] = df[ref_price].rolling(window).std() # this can go to 0!!!
     df["min"] = df[ref_price].rolling(window).min() / df[ref_price] - 1
     df["max"] = df[ref_price].rolling(window).max() / df[ref_price] - 1
-    df["mom"] = df["returns"].rolling(3).mean()  # todo make this a param
+    df["mom"] = df["returns"].rolling(3).mean()  # todo make this 3 a param
     df["vol"] = df["returns"].rolling(window).std()
     df.dropna(inplace=True)
-    df["boll"] = df["boll1"] * df["boll_std"]  # TODO: replace for test /with *... see the meaning of rescaling with std
+    df["boll"] = df["boll1"] /( epsilon +  df["boll_std"])
     #df.drop(columns=["boll_std","boll1"], inplace=True)
     return df
 

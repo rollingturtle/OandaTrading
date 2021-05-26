@@ -19,15 +19,15 @@ features = ["dir", "sma", "boll", "min", "max", "mom", "vol"]#,
                  #"profit_over_spread", "loss_over_spread"] # Todo: reintegrate these as features
 
 granul="S5"
-days = 20
+days = 40
 days_inference = 3
-lags = 8
-split_pcs = (0.8, 0.05, 0.15)
-stop_trading = 300
+lags = 12
+split_pcs = (0.7, 0.10, 0.20)
+stop_trading = 500
 
 #trading thresholds for probability
-lower_go_short = 0.3#0.4
-higher_go_long = 0.7#0.6
+lower_go_short = 0.2#0.4
+higher_go_long = 0.8#0.6
 
 # bulk trade
 units = 1000
