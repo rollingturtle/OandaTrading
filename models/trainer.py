@@ -267,9 +267,9 @@ if __name__ == "__main__":
     # set instrument to work with
     instrument = cfginst.instrument
 
-    # get or generate datafiles files and folders, if do not exist
-    namefiles_dict = {}
-    namefiles_dict = u.creates_filenames_dict(cfginst.instrument, namefiles_dict, cfg)
+    # # get or generate datafiles files and folders, if do not exist
+    # namefiles_dict = {}
+    # namefiles_dict = u.creates_filenames_dict(cfginst.instrument, namefiles_dict, cfg)
 
     # Todo: do this selection better and not via string. This should reference via dict to the model
     model_id = "LSTM_dnn_all_states"# "LSTM_dnn" #"ffn" #""dnn1"

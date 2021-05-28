@@ -24,28 +24,35 @@ from  strategies.strategies import Strategy_1
 
 
 class DNNTrader(tpqoa.tpqoa):
-    def __init__(self, conf_file,
-                 instrument,
-                 bar_length,
-                 window,
-                 lags,
-                 units,
+    def __init__(self,
+                 conf_file,
+                 instrument_file,
                  model_id,
-                 mu,
-                 std,
-                 hspread_ptc,
-                 sma_int,
-                 features,
-                 h_prob_th,
-                 l_prob_th):
+                 mu, std):
+
 
         super().__init__(conf_file)
+
+
+        model_id = model_id
+        mu = mu
+        std = std
+
+        self.instrument_file = instrument_file
+        self.instrument = instrument_file.instrument
+        self.features = instrument_file.features
+        self.lags = instrument_file.lags
+
+        self.namefiles_dict = {}
+        self.namefiles_dict = u.creates_filenames_dict(
+                            self.instrument_file.instrument,
+                                        self.namefiles_dict, cfg)
+
         self.position = 0
-        self.instrument = instrument
-        self.window = window
-        self.bar_length = bar_length
-        self.lags = lags
-        self.units = units
+        self.window = instrument_file.window
+        self.bar_length = instrument_file.brl
+        self.lags = instrument_file.lags
+        self.units = instrument_file.units
         self.model_id = model_id
         self.model = None
         self.mu = mu
@@ -56,11 +63,11 @@ class DNNTrader(tpqoa.tpqoa):
         self.raw_data = None
         self.data = None
         self.profits = []
-        self.hspread_ptc = hspread_ptc
-        self.sma_int = sma_int
-        self.features = features
-        self.h_prob_th = h_prob_th
-        self.l_prob_th = l_prob_th
+        self.hspread_ptc = instrument_file.hspread_ptc
+        self.sma_int = instrument_file.sma_int
+        self.features = instrument_file.features
+        self.h_prob_th = instrument_file.higher_go_long
+        self.l_prob_th = instrument_file.lower_go_short
         self.strategy = Strategy_1(instrument=self.instrument,
                                    order_fun= self.create_order, #partial(self.create_order,
                                                 #      self.instrument, suppress=True, ret=True),
@@ -294,22 +301,13 @@ if __name__ == "__main__":
 
     # create trader object using instrument configuration details
     trader = DNNTrader(cfg.conf_file,
-                       instrument=instrument,
-                       bar_length=cfginst.brl,
-                       window=cfginst.window,
-                       lags=cfginst.lags,
-                       units=cfginst.units,
+                       instrument_file=cfginst,
                        model_id=model_id,
-                       mu=mu, std=std,
-                       hspread_ptc=cfginst.hspread_ptc,
-                       sma_int=cfginst.sma_int,
-                       features=cfginst.features,
-                       h_prob_th=cfginst.higher_go_long,
-                       l_prob_th=cfginst.lower_go_short)
+                       mu=mu, std=std)
 
     # either live trading or testing (back or fw testing)
     TRADING = 0
-    BCKTESTING, FWTESTING = (0,1) if not TRADING else (0,0) #todo: do it better!!
+    BCKTESTING, FWTESTING = (1,0) if not TRADING else (0,0) #todo: do it better!!
 
     if TRADING:
         trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data

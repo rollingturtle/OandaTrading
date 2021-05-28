@@ -16,6 +16,23 @@ as jpnb: trader_ml.py, trainer.py, getpreparedata.py
 
 Todo (Backlog):
 
+- review the target for the model: what I may want to get is whether or not the average of the
+log returns in the next, say, 6 steps (t+0=NOW -> t+5), is positive or negative.
+Even better, if it is greater than the spread at time t
+Averaging log returns should yield an entity that is smoother and possibly easier to predict.
+Still, it brings info as it corresponds to the information about the
+
+- consider control_class (compositional approach): one super class that instantiates:
+   OandaDataCollector
+   DL_Trainer
+   DNNTrader
+   The control_class should take a list of instruments (or one only) for the data collection
+    but also a list of instruments to trade.
+    Here the open point of how to dowload live data for multiple instruments
+    v20 supports it but tpqoa apparently not. Either I do my multithreading or I call v20 directly
+
+- First step towards control_class: all with 1 instrument, but pull everything under control_class
+
 -trainer: add callback to save model at best validation accuracy
 
 - consider training on a joint data from a "connected" group of instruments, so to increase

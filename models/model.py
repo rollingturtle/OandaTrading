@@ -118,7 +118,7 @@ def LSTM_dnn(dropout=0.0, inputs=None):
 
 def LSTM_dnn_all_states(dropout=0.0, inputs=None):
     inputs = keras.layers.Input(shape=(inputs.shape[1],inputs.shape[2]))
-    lstm_out = keras.layers.LSTM(64,dropout=dropout,
+    lstm_out = keras.layers.LSTM(128,dropout=dropout,
                                  return_sequences=True)(inputs) # Todo: make dimension of LSTM a param
     lstm_out_flatten = keras.layers.Flatten()(lstm_out)
     #lstm_out_flatten = keras.layers.AveragePooling1D(pool_size=inputs.shape[1])(lstm_out)
