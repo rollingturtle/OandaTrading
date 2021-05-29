@@ -30,14 +30,7 @@ class DNNTrader(tpqoa.tpqoa):
                  model_id,
                  mu, std):
 
-
         super().__init__(conf_file)
-
-
-        model_id = model_id
-        mu = mu
-        std = std
-
         self.instrument_file = instrument_file
         self.instrument = instrument_file.instrument
         self.features = instrument_file.features
@@ -51,7 +44,6 @@ class DNNTrader(tpqoa.tpqoa):
         self.position = 0
         self.window = instrument_file.window
         self.bar_length = instrument_file.brl
-        self.lags = instrument_file.lags
         self.units = instrument_file.units
         self.model_id = model_id
         self.model = None
@@ -287,11 +279,6 @@ if __name__ == "__main__":
     ####  wanted/needed configuration
     import configs.EUR_PLN_2 as cfginst
 
-    instrument = cfginst.instrument
-
-    # get or generate datafiles files and folders, if do not exist
-    namefiles_dict = {}
-    namefiles_dict = u.creates_filenames_dict(instrument, namefiles_dict, cfg)
     #load params for data standardization
     params = pickle.load(open(namefiles_dict["params"], "rb"))
     mu = params["mu"]
@@ -305,8 +292,14 @@ if __name__ == "__main__":
                        model_id=model_id,
                        mu=mu, std=std)
 
+    instrument = cfginst.instrument
+
+    # get or generate datafiles files and folders, if do not exist
+    namefiles_dict = {}
+    namefiles_dict = u.creates_filenames_dict(instrument, namefiles_dict, cfg)
+
     # either live trading or testing (back or fw testing)
-    TRADING = 0
+    TRADING = 1
     BCKTESTING, FWTESTING = (1,0) if not TRADING else (0,0) #todo: do it better!!
 
     if TRADING:
