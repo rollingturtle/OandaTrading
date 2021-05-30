@@ -11,7 +11,8 @@ class Strategy(metaclass=ABCMeta):
             prob_up=0.5,
             thr_up=.53,
             thr_low=.47,
-            units=1000):
+            units=1000,
+            live_or_test = "test"):
         pass
 
 
@@ -20,13 +21,11 @@ class Strategy_1(Strategy):
     def __init__(self,
                  instrument,
                  order_fun,
-                 report_fun,
-                 live_or_test="test"
+                 report_fun
                  ):
         super().__init__()
         self.order_fun = order_fun
         self.report_fun = report_fun
-        self.live_or_test = live_or_test
         self.instrument =  instrument
         self.position = 0
         return
@@ -37,11 +36,12 @@ class Strategy_1(Strategy):
             thr_up=.53,
             thr_low=.47,
             units=1000,
-            predictions=None):
+            predictions=None,
+            live_or_test="test"):
 
         self.position = position
 
-        if self.live_or_test == "live":
+        if live_or_test == "live":
             if self.position == 0:
                 if prob_up > thr_up:
                     order = self.order_fun(self.instrument, units,suppress=True, ret=True)
@@ -70,7 +70,8 @@ class Strategy_1(Strategy):
             for i in range(1, len(positions)):
                 if positions[i] == 0:
                     positions[i] = positions[i-1]
-            return positions
+
+            return positions # "test"
 
 
 

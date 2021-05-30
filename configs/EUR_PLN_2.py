@@ -13,9 +13,9 @@ conf_name = instrument + "_2" # Change this according to the config file name!
 brl = "1min"  # bar lenght for resampling
 window = 10
 sma_int = 5
-hspread_ptc = 0.00007
+half_spread = 0.00007
 labels = ["dir", "profit_over_spread", "loss_over_spread"]
-features = ["dir", "sma", "boll", "min", "max", "mom", "vol"]#,
+features = ["dir", "sma", "boll", "min", "max", "mom", "vol", "volume"]
                  #"profit_over_spread", "loss_over_spread"] # Todo: reintegrate these as features
 
 granul="S5"

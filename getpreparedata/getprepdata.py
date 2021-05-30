@@ -136,7 +136,7 @@ class OandaDataCollector():
             "get_most_recent: 1-NANs in self.raw_data_featured" #
         return
 
-    def make_features(self, window = 10, sma_int=5, hspread_ptc=0.00007):
+    def make_features(self, window = 10, sma_int=5, half_spread=0.00007):
         '''
         creates features using utils.make_features
         '''
@@ -149,7 +149,9 @@ class OandaDataCollector():
         assert (len(df[ref_price]) > window), \
             "make_features: the dataframe length is not greater than the Bollinger window"
 
-        self.raw_data_featured = u.make_features(df, sma_int, window, hspread_ptc, ref_price=ref_price )
+        # Creating features from ref_price
+        self.raw_data_featured = u.make_features(df, sma_int, window, half_spread, ref_price=ref_price )
+
         logging.info("make_features: created new features and added to self.raw_data_featured")
         print("make_features: self.raw_data_featured.columns ", self.raw_data_featured.columns)
         assert (not self.raw_data_featured.isnull().values.any()), \

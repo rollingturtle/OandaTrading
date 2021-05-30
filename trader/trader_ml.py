@@ -55,23 +55,21 @@ class DNNTrader(tpqoa.tpqoa):
         self.raw_data = None
         self.data = None
         self.profits = []
-        self.hspread_ptc = instrument_file.hspread_ptc
+        self.half_spread = instrument_file.half_spread
         self.sma_int = instrument_file.sma_int
         self.features = instrument_file.features
         self.h_prob_th = instrument_file.higher_go_long
         self.l_prob_th = instrument_file.lower_go_short
         self.strategy = Strategy_1(instrument=self.instrument,
-                                   order_fun= self.create_order, #partial(self.create_order,
-                                                #      self.instrument, suppress=True, ret=True),
-                                    report_fun= self.report_trade,
-                                    live_or_test="live")
+                                   order_fun= self.create_order,
+                                   report_fun= self.report_trade)
         self.set_model()
         return
 
     def set_model(self):
 
         self.model = keras.models.load_model(cfg.trained_models_path +
-                                        instrument + "/" + model_id + ".h5")
+                                        self.instrument + "/" + self.model_id + ".h5")
         print("Layers of model being used are: ")
         print(self.model.layers)
         return
@@ -81,20 +79,16 @@ class DNNTrader(tpqoa.tpqoa):
         test the (model,strategy) pair on the passed, and compare the buy&hold with
         the chosen strategy. Ideally estimation of trading costs should be included
         '''
-        #overwrite strategy to set test mode TODO: change this with testing before changing
-        self.strategy = Strategy_1(instrument=self.instrument,
-                                   order_fun=self.create_order,
-                                   report_fun=self.report_trade,
-                                   live_or_test="test")
+
         test_outs = pd.DataFrame()
         self.data = data.copy()
         test_outs["probs"] = self.predict(TESTING=True)
-        #test_outs["position"] = test_outs["pred"]
-        # Todo: implement strategy here!!
         test_outs["position"] = self.strategy.act(
             prob_up=test_outs["probs"],
             thr_up=self.h_prob_th,
-            thr_low=self.l_prob_th)
+            thr_low=self.l_prob_th,
+            live_or_test="test")
+
         # calculate Strategy Returns: I need access to returns here!!!
         # but likely the returns I have access here are normalized..
         # Todo: review how to grant access to returns here, and see if access to normalized is doable
@@ -104,7 +98,7 @@ class DNNTrader(tpqoa.tpqoa):
         # determine when a trade takes place
         test_outs["trades"] = test_outs["position"].diff().fillna(0).abs()
         # subtract transaction costs from return when trade takes place
-        test_outs['strategy'] = test_outs["strategy_gross"] - test_outs["trades"] * self.hspread_ptc
+        test_outs['strategy'] = test_outs["strategy_gross"] - test_outs["trades"] * self.half_spread
         # calculate cumulative returns for strategy & buy and hold
         test_outs["creturns"] = (data["returns"] * self.std["returns"]
                                  + self.mu["returns"]).cumsum().apply(np.exp)
@@ -119,7 +113,7 @@ class DNNTrader(tpqoa.tpqoa):
         # plot results
         # todo: review why figures are not shown as expected
         print("plotting cumulative results of buy&hold and strategy")
-        title = "{} | Transaction Cost = {}".format(self.instrument, self.hspread_ptc)
+        title = "{} | Transaction Cost = {}".format(self.instrument, self.half_spread)
         results[["cstrategy",  "creturns", "cstrategy_gross"]].\
             plot(title=title, figsize=(12, 8))
         plt.show()
@@ -130,12 +124,7 @@ class DNNTrader(tpqoa.tpqoa):
         plt.xlabel("time")
         plt.ylabel("positions")
         plt.show()
-        # reset strategy to live
-        #overwrite strategy to set test mode
-        self.strategy = Strategy_1(instrument=self.instrument,
-                                   order_fun=self.create_order,
-                                   report_fun=self.report_trade,
-                                   live_or_test="live")
+
         return round(perf, 6), round(outperf, 6)
 
     def get_most_recent(self, days=5, granul="S5"):
@@ -180,7 +169,7 @@ class DNNTrader(tpqoa.tpqoa):
         df = u.make_features(df,
                             self.sma_int,
                             self.window,
-                            self.hspread_ptc,
+                            self.half_spread,
                             ref_price = self.instrument )
         df = u.make_lagged_features(df, self.features, self.lags)
         self.data = df.copy()
@@ -233,9 +222,14 @@ class DNNTrader(tpqoa.tpqoa):
         # store and resample tick data and join with historical data
         df = pd.DataFrame({self.instrument: (ask + bid) / 2},
                           index=[pd.to_datetime(time)])
+
+        # visualize the data added to the tick_data
+        print("on_success: adding to tick_data: {}".format(df))
         self.tick_data = self.tick_data.append(df)
-        #print("self.tick_data.head()\n", self.tick_data.head())
+        print("self.tick_data.head()\n", self.tick_data.head())
+
         self.resample_and_join()
+
         # only if new bar has been added:
         if len(self.raw_data) > self.min_length - 1:
             self.min_length += 1
@@ -251,7 +245,8 @@ class DNNTrader(tpqoa.tpqoa):
                        prob_up=self.data["proba"].iloc[-1],
                        thr_up=self.h_prob_th,
                        thr_low=self.l_prob_th,
-                       units = self.units)
+                       units = self.units,
+                       live_or_test="live")
         return
 
     def report_trade(self, order, going):
@@ -278,6 +273,11 @@ if __name__ == "__main__":
     ####  change this import pointing to the
     ####  wanted/needed configuration
     import configs.EUR_PLN_2 as cfginst
+
+    namefiles_dict = {}
+    namefiles_dict = u.creates_filenames_dict(
+        cfginst.instrument,
+        namefiles_dict, cfg)
 
     #load params for data standardization
     params = pickle.load(open(namefiles_dict["params"], "rb"))

@@ -12,8 +12,8 @@ import sys
 sys.path.append('../')
 
 
-def make_features(df, sma_int, window, hspread_ptc, ref_price, epsilon=10e-8):
-    ''' Creates features  and labels, using ref_price as input and hspread_ptc
+def make_features(df, sma_int, window, half_spread, ref_price, epsilon=10e-8):
+    ''' Creates features  and labels, using ref_price as input and half_spread
     (estimation of half cost for each position.
      sma_int and window are used to compute sma feature and bollinger related features
 
@@ -43,12 +43,11 @@ def make_features(df, sma_int, window, hspread_ptc, ref_price, epsilon=10e-8):
 
     # same labels to identify direction and amount of change
     df["dir"] = np.where(df["returns"] > 0, 1, 0)  # market direction
-    df["profit_over_spread"] = np.where(df["returns"] > np.log(1 + hspread_ptc), 1, 0)  # profit over spread
-    df["loss_over_spread"] = np.where(df["returns"] < np.log(1 - hspread_ptc), 1, 0)  # loss under spread
+    df["profit_over_spread"] = np.where(df["returns"] > np.log(1 + half_spread), 1, 0)  # profit over spread
+    df["loss_over_spread"] = np.where(df["returns"] < np.log(1 - half_spread), 1, 0)  # loss under spread
     # Todo: consider a label based on whether or not the rolling mean of the log returns
     # in the next steps is positive or negative
 
-    # features: watch out for some of them to diverge (boll)
     df["sma"] = df[ref_price].rolling(window).mean() - df[ref_price].rolling(sma_int).mean()
     df["boll1"] = (df[ref_price] - df[ref_price].rolling(window).mean()) #/ df[ref_price].rolling(window).std()
     df["boll_std"] = df[ref_price].rolling(window).std() # this can go to 0!!!
@@ -57,8 +56,8 @@ def make_features(df, sma_int, window, hspread_ptc, ref_price, epsilon=10e-8):
     df["mom"] = df["returns"].rolling(3).mean()  # todo make this 3 a param
     df["vol"] = df["returns"].rolling(window).std()
     df.dropna(inplace=True)
-    df["boll"] = df["boll1"] /( epsilon +  df["boll_std"])
-    #df.drop(columns=["boll_std","boll1"], inplace=True)
+    df["boll"] = df["boll1"] /(epsilon +  df["boll_std"])
+    df.drop(columns=["boll_std","boll1"], inplace=True)
     return df
 
 def make_lagged_features(df, features, lags=5):
