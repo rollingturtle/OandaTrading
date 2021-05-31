@@ -19,8 +19,8 @@ class OandaDataCollector():
     '''
 
     def __init__(self,
-                 instrument_file,
-                 conf_file):
+                 instrument_file=None,
+                 conf_file=None):
 
 
         self.instrument_file = instrument_file

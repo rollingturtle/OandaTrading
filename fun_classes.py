@@ -38,9 +38,8 @@ class ond: # Todo: should be abstract class?
     '''
     Base class for classes directly communicating to Oanda service
     '''
-    def __init__(self,
-                 instrument_file,  # instrument conf file
-                 conf_file):  # oanda user conf file
+    def __init__(self,conf_file,  # oanda user conf file: todo: should I set it here??
+                 instrument_file): # instrument conf file
 
         self.instrument_file = instrument_file
         self.instrument = instrument_file.instrument
@@ -71,8 +70,9 @@ class gdt(ond):
     '''
 
     def __init__(self,
-                 instrument_file,  # instrument conf file
-                 conf_file):
+                 conf_file, # Oanda conf file
+                 instrument_file):  # instrument conf file
+
         super(gdt, self).__init__(instrument_file, conf_file)
 
         # raw tick data, and resampled version which has precise time interval
@@ -368,9 +368,10 @@ class trn(ond):
     '''
 
     def __init__(self,
+                 conf_file, # Oanda conf file
                  instrument_file,  # instrument conf file
-                 conf_file,
                  model_id):
+
         super(trn, self).__init__(instrument_file, conf_file)
 
         assert model_id in m.available_models, \
@@ -557,6 +558,18 @@ class trn(ond):
                 to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
             self.model.evaluate(numpy_test, self.test_labels["dir"].to_numpy(), verbose=True)
 
+        return
+
+    def make_predictions(self):
+        print("main: just testing predictions for later trading applications")
+        if self.model_id == "ffn" or self.model_id == "ffn":  # todo : do this better
+            pred = self.model.predict(self.train_data[self.lagged_cols], verbose=True)
+        elif self.model_id == "LSTM_dnn" or \
+                self.model_id ==  "LSTM_dnn_all_states":
+            numpy_train = self._get_3d_tensor(self.train_data[self.lagged_cols_reordered]. \
+                to_numpy())
+            pred = self.model.predict(numpy_train, verbose=True)
+        print(pred)
         return
 
 
@@ -905,23 +918,6 @@ class trd(ond, tpqoa.tpqoa):
                        live_or_test="live")
         return
 
-    def report_trade(self, order, going):
-        print(order)
-        time = order["time"]
-        units = order["units"]
-        # Todo: review this workaround to make it run as price and pl keys are missing sometimes
-        print("order.keys(): ", order.keys())
-        if "price" in order.keys():
-            price = order["price"]
-            pl = float(order["pl"])
-            self.profits.append(pl)
-            cumpl = sum(self.profits)
-            print("\n" + 100 * "-")
-            print("{} | {}".format(time, going))
-            print("{} | units = {} | price = {} | P&L = {} | Cum P&L = {}".format(time, units, price, pl, cumpl))
-            print(100 * "-" + "\n")
-        return
-
 
 ################################################## ctrl ###############################################
 class ctrl:
@@ -931,8 +927,8 @@ class ctrl:
     '''
 
     def __init__(self,
-                 instrument_files,  # list of instrument conf files
-                 conf_file):  # oanda user conf file
+                 conf_file, # oanda user conf file
+                 instrument_files):  # list of instrument conf files - for now only 1 element supported!
 
         self.instrument_files = instrument_files
         self.instruments = [t.instrument for t in self.instrument_files]
@@ -948,4 +944,31 @@ class ctrl:
                 namefiles_dict, cfg)
             self.namefiles_dicts.append(namefiles_dict)
 
+        # Create the first of the fundamental objects to operate:
+        # getting data.
+        # train model, test and trade, will be created later, when clarified
+        # if we have all the necessary parts (data, mu, std at least)
+
+        # many objects to get data? or just one that deals internally with multithread.
+        # for now make many
+        self.gdt_list = []
+        for f in instrument_files:
+            b = gdt(f, conf_file)
+            self.gdt_list.append(b)
+
         return
+
+        # # many objects to train the model on a specific data and targets
+        # self.model_id = model_id
+        # self.trn_list = []
+        # for f in instrument_files:
+        #     b = trn(f, conf_file, self.model_id)
+        #     self.trn_list.append(b)
+        #
+        # # only one trader is needed, as it will take a model trained on the joint data
+        # # and it will get tick data from a set of threads, one for each instrument, and t
+        # # the model can have multiple outputs predicting the market trend for each instrument
+        # # for now trader supports only one instrument however so let's pass the first in the list
+        #
+        # self.trader = trd(self.instrument_files[0], conf_file,
+        # return

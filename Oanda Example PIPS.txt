@@ -1,0 +1,55 @@
+Oanda Example:
+https://www1.oanda.com/forex-trading/learn/getting-started/pips
+
+Currency Pair: EUR/GBP
+Exchange Rate at Close: 0.8714
+Pip Change: +29
+Trade Amount: 350,000 EUR
+
+Number of GBP per pip: 350,000 × 0.0001 = 35
+Per Pip Value: 35 ÷ 0.8714 = 40.17 EUR per pip
+Trade Profit / (Loss): 29 pips × 40.17 = 1, 164.93 Euros
+
+units for the trade: 350,000 (EUR)
+
+***************** Assuming was long(bought): ESATTO!
+350,000 * (0.8714 - 0.0001 * 29) = 303,975 GBP amount paid  in GBP initially
+units * (fin_ex_rate - pip_u * delta_pips) = GBP_init
+units * fin_ex_rate - units * pip_u * delta_pips
+
+350,000 * 0.8714 = 304,990 GBP amount sold the end
+units * fin_ex_rate = GBP_fin
+
+Delta GBP = 1,015 GBP
+GBP_fin - GBP_init = Delta_GBP
+
+Delta EUR = 1,015 /0.8714 = 1,164792288271747  EUR =ca= 1,1648 EUR
+Delta_EUR = Delta_GBP / fine_ex_rate
+	  = (GBP_fin - GBP_init ) / fine_ex_rate
+	  = (units * fin_ex_rate + units * pip_u * delta_pips - units * fin_ex_rate) / fin_ex_rate
+	  = (units - units + units * pip_u * delta_pips) / fin_ex_rate
+	 =  (units * pip_u * delta_pips) / fin_ex_rate
+
+***************** As per Oanda computation: (come sopra ESATTO, ma non tengono conto di molti decimali al passo 2)
+1-Number of GBP per pip: 350,000 × 0.0001 = 35 
+units * pip_u
+
+2-Per Pip Value: 35 ÷ 0.8714 = 40.17 EUR per pip
+units * pip_u / fine_ex_rate
+
+3T-rade Profit / (Loss): 29 pips × 40.17 = 1, 164.93 Euros
+delta_pips * units * pip_u / fine_ex_rate
+
+
+
+
+
+***************** Assuming was short(sold):
+350,000 * (0.8714 + 0.0001 * 29) = amount paid  in GBP initially
+306,005 GBP
+
+350,000 * 0.8714 = amount sold the end
+304,990 GBP
+
+Delta GBP = 1,015 GBP
+Delta EUR = 1,015 /0.8743 =ca= 1,1609 EUR
