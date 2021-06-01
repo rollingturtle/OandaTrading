@@ -10,4 +10,4 @@ Currently, tools can be divided in 3 categories:
 1. trade with ML: live trading and back/fw testing. Download a small chunk of most recent historical data, get stream of live data, concatenate them, make features, lagged features, run ML, get probabilities, apply selected strategy and issue orders accordingly
 Ideally there should be a set of strategies, a set of models, a set of possible features-set, a set of instruments to trade.
 
-To create the conda environment: `conda create --name myenv --file env-details.txt`
+To create the conda environment: `conda env create -f environment.yml`
