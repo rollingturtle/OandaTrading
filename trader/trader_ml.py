@@ -70,8 +70,8 @@ class DNNTrader(tpqoa.tpqoa):
 
     def set_model(self):
 
-        self.model = keras.models.load_model(cfg.trained_models_path +
-                                        instrument + "/" + model_id + ".h5")
+        self.model = keras.models.load_model(self.namefiles_dict['model_folder'] \
+                                    + model_id + ".h5")
         print("Layers of model being used are: ")
         print(self.model.layers)
         return
@@ -205,7 +205,7 @@ class DNNTrader(tpqoa.tpqoa):
                     lagged_cols.append(col)
             df["proba"] = self.model.predict(df[lagged_cols])
 
-        elif self.model_id == "LSTM_dnn":
+        elif self.model_id == "LSTM_dnn" or  "LSTM_dnn_all_states":
             # reoder features
             for lag in range(1, self.lags + 1):
                 for feat in self.features:
@@ -241,6 +241,7 @@ class DNNTrader(tpqoa.tpqoa):
             self.min_length += 1
             self.prepare_data()
             self.predict()
+            #print(self.data.columns)
             print("on_success: predicted probabilty for next bar is ", self.data["proba"].iloc[-1])
             # orders and trades
             # here we apply a strategy based on the probabilities. Many strategies are possible
@@ -279,12 +280,18 @@ if __name__ == "__main__":
     ####  wanted/needed configuration
     import configs.EUR_PLN_2 as cfginst
 
+
+    instrument = cfginst.instrument
+    # get or generate datafiles files and folders, if do not exist
+    namefiles_dict = {}
+    namefiles_dict = u.creates_filenames_dict(instrument, namefiles_dict, cfg)
+
     #load params for data standardization
     params = pickle.load(open(namefiles_dict["params"], "rb"))
     mu = params["mu"]
     std = params["std"]
     # load trained model
-    model_id = "LSTM_dnn" #"ffn" #DNN_model
+    model_id = "LSTM_dnn_all_states" #"LSTM_dnn" #"ffn" #DNN_model
 
     # create trader object using instrument configuration details
     trader = DNNTrader(cfg.conf_file,
@@ -292,15 +299,10 @@ if __name__ == "__main__":
                        model_id=model_id,
                        mu=mu, std=std)
 
-    instrument = cfginst.instrument
-
-    # get or generate datafiles files and folders, if do not exist
-    namefiles_dict = {}
-    namefiles_dict = u.creates_filenames_dict(instrument, namefiles_dict, cfg)
 
     # either live trading or testing (back or fw testing)
-    TRADING = 1
-    BCKTESTING, FWTESTING = (1,0) if not TRADING else (0,0) #todo: do it better!!
+    TRADING = 0
+    BCKTESTING, FWTESTING = (0,1) if not TRADING else (0,0) #todo: do it better!!
 
     if TRADING:
         trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data
