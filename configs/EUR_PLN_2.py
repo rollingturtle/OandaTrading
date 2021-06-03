@@ -19,7 +19,7 @@ features = ["dir", "sma", "boll", "min", "max", "mom", "vol", "volume"]
                  #"profit_over_spread", "loss_over_spread"] # Todo: reintegrate these as features
 
 granul="S5"
-days = 40
+days = 2
 days_inference = 3
 lags = 12
 split_pcs = (0.7, 0.10, 0.20)

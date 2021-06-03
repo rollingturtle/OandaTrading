@@ -2,7 +2,7 @@
 import logging
 import os
 
-proj_path = os.path.abspath("../") + "/"
+proj_path = os.path.abspath("./") + "/"
 config_path = proj_path + "configs/"
 data_path = proj_path + "Data/"
 trained_models_path = proj_path + "TrainedModels/"
