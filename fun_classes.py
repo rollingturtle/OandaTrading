@@ -43,7 +43,7 @@ class ond: # Todo: should be abstract class?
 
         self.instrument_file = instrument_file
         self.instrument = instrument_file.instrument
-        self.labels = instrument_file.labels  # "dir", "profit_over_spread", "loss_over_spread"]
+        self.targets = instrument_file.targets  # "dir", "profit_over_spread", "loss_over_spread"]
         self.features = instrument_file.features
         self.lags = instrument_file.lags
 
@@ -70,7 +70,7 @@ class gdt(ond):
     '''
 
     def __init__(self,
-                 conf_file, # Oanda conf file
+                 conf_file, # General conf file, which includes reference to Oanda conf file
                  instrument_file):  # instrument conf file
 
         super(gdt, self).__init__(conf_file, instrument_file)
@@ -135,7 +135,7 @@ class gdt(ond):
         raw_data_featured_resampled = pd.read_csv(
             namefiles_dict["raw_data_featured_resampled_file_name"], index_col="time", parse_dates=True, header=0)
 
-        # loading 3 datasets, standardized, which contains also the columns for labels
+        # loading 3 datasets, standardized, which contains also the columns for targets
         train_ds_std = \
             pd.read_csv(namefiles_dict["train_filename"], index_col="time", parse_dates=True, header=0)
         validation_ds_std = \
@@ -192,7 +192,6 @@ class gdt(ond):
         if price == "A":
             self.ask_df = df.copy()
             print("Got ASK data ", self.ask_df.columns)
-
         elif price =="B":
             self.bid_df = df.copy()
             print("Got BID data ", self.bid_df.columns)
@@ -340,13 +339,21 @@ class gdt(ond):
         assert (not self.raw_data_featured_resampled.isnull().values.any()), \
             "make_3_datasets: NANs in self.raw_data_featured_resampled"
 
-        # Making 3 datasets
+        # Making 3 input datasets
+        ## Select relevant columns for input data
+        input_cols = [col for col in df.columns if "lag_" in col]
         train_split = int(len(df) * split_pcs[0])
         val_split = int(len(df) * (split_pcs[0] + split_pcs[1]))
-        self.train_ds = df.iloc[:train_split].copy()
-        self.validation_ds = df.iloc[train_split:val_split].copy()
-        self.test_ds = df.iloc[val_split:].copy()
+        self.train_ds = df[input_cols].iloc[:train_split].copy()
+        self.validation_ds = df[input_cols].iloc[train_split:val_split].copy()
+        self.test_ds = df[input_cols].iloc[val_split:].copy()
 
+        # Making 3 target datasets
+        ## Select relevant columns for target data
+        target_cols = [col for col in df.columns if ("dir" in col and "lag_" not in col)]
+        self.train_targets = df[target_cols].iloc[:train_split].copy()
+        self.validation_targets = df[target_cols].iloc[train_split:val_split].copy()
+        self.test_targets = df[target_cols].iloc[val_split:].copy()
         print("make_3_datasets: self.train_ds.info() ", self.train_ds.info())
         return
 
@@ -385,11 +392,11 @@ class gdt(ond):
         self.test_ds_std.to_csv(self.namefiles_dict["test_filename"],
                              index = True, header=True)
 
-        self.train_ds[self.labels].to_csv(self.namefiles_dict["train_labl_filename"],
+        self.train_targets.to_csv(self.namefiles_dict["train_labl_filename"],
                              index = True, header=True)
-        self.validation_ds[self.labels].to_csv(self.namefiles_dict["valid_labl_filename"],
+        self.validation_targets.to_csv(self.namefiles_dict["valid_labl_filename"],
                              index = True, header=True)
-        self.test_ds[self.labels].to_csv(self.namefiles_dict["test_labl_filename"],
+        self.test_targets.to_csv(self.namefiles_dict["test_labl_filename"],
                              index = True, header=True)
 
         pickle.dump(self.params, open(self.namefiles_dict["train_folder"]  + "params.pkl", "wb"))
@@ -412,9 +419,9 @@ class trn(ond):
     '''
 
     def __init__(self,
-                 conf_file, # Oanda conf file
-                 instrument_file,  # instrument conf file
-                 model_id):
+                 conf_file=None, # General conf file, which includes reference to Oanda conf file
+                 instrument_file=None,  # instrument conf file
+                 model_id=None):
 
         super(trn, self).__init__(instrument_file, conf_file)
 
@@ -426,9 +433,9 @@ class trn(ond):
         self.train_data = None
         self.test_data = None
         self.validation_data = None
-        self.validation_labels = None
-        self.train_labels = None
-        self.test_labels = None
+        self.validation_targets = None
+        self.train_targets = None
+        self.test_targets = None
         self.lagged_cols = []
         self.lagged_cols_reordered = []
         return
@@ -443,11 +450,11 @@ class trn(ond):
         self.validation_data = pd.read_csv(self.namefiles_dict["valid_filename"],
                                    index_col="time", parse_dates=True, header=0)
 
-        self.train_labels = pd.read_csv(self.namefiles_dict["train_labl_filename"],
+        self.train_targets = pd.read_csv(self.namefiles_dict["train_labl_filename"],
                                    index_col="time", parse_dates=True, header=0)
-        self.test_labels = pd.read_csv(self.namefiles_dict["test_labl_filename"],
+        self.test_targets = pd.read_csv(self.namefiles_dict["test_labl_filename"],
                                    index_col="time", parse_dates=True, header=0)
-        self.validation_labels = pd.read_csv(self.namefiles_dict["valid_labl_filename"],
+        self.validation_targets = pd.read_csv(self.namefiles_dict["valid_labl_filename"],
                                    index_col="time", parse_dates=True, header=0)
 
         # Todo: make this step unified and linked to instrument specific configuration
@@ -472,8 +479,8 @@ class trn(ond):
         print("self.train_data.head()\n",self.train_data.head())
         assert (not self.train_data[self.lagged_cols].isnull().values.any()), \
             "NANs in Training Data"
-        assert (not self.train_labels["dir"].isnull().values.any()), \
-            "NANs in LABELS"
+        assert (not self.train_targets["dir"].isnull().values.any()), \
+            "NANs in targets"
         return # train and test data loaded. Validation carved out by Keras from training data
 
     def set_model(self):
@@ -512,14 +519,14 @@ class trn(ond):
         if self.model_id == "ffn" or self.model_id == "ffn": #todo : do this better
 
             r = self.model.fit(x=self.train_data[self.lagged_cols],
-                          y=self.train_labels["dir"],
+                          y=self.train_targets["dir"],
                           epochs=epochs,
                           verbose=True,
                           validation_data=(self.validation_data[self.lagged_cols],
-                                           self.validation_labels["dir"]),
+                                           self.validation_targets["dir"]),
                           shuffle=True,
                           batch_size=64,
-                          class_weight=m.cw(self.train_labels))
+                          class_weight=m.cw(self.train_targets))
 
         elif self.model_id == "LSTM_dnn" or \
                 self.model_id ==  "LSTM_dnn_all_states":
@@ -535,14 +542,14 @@ class trn(ond):
             print("numpy_train.shape ",numpy_train.shape)
 
             r = self.model.fit(x = numpy_train,
-                      y = self.train_labels["dir"].to_numpy(),
+                      y = self.train_targets["dir"].to_numpy(),
                       epochs = epochs,
                       verbose = True,
                       validation_data=(numpy_val,
-                                       self.validation_labels["dir"].to_numpy()),
+                                       self.validation_targets["dir"].to_numpy()),
                       shuffle = True,
                       batch_size=64,  # Todo make BS a param
-                      class_weight = m.cw(self.train_labels))
+                      class_weight = m.cw(self.train_targets))
 
         # get some visualization of the effect of learning (on weights, loss, acc)
         # plt.hist(self.model.layers[2].get_weights()[0])
@@ -585,9 +592,9 @@ class trn(ond):
         if self.model_id == "ffn" or self.model_id == "ffn":  # todo : do this better
 
             print("main: Evaluating the model on in-sample data (training data)")
-            self.model.evaluate(self.train_data[self.lagged_cols], self.train_labels["dir"], verbose=True)
+            self.model.evaluate(self.train_data[self.lagged_cols], self.train_targets["dir"], verbose=True)
             print("main: valuating the model on out-of-sample data (test data)")
-            self.model.evaluate(self.test_data[self.lagged_cols], self.test_labels["dir"], verbose=True)
+            self.model.evaluate(self.test_data[self.lagged_cols], self.test_targets["dir"], verbose=True)
 
             # Todo: why evaluate does not show the accuracy?
         elif self.model_id == "LSTM_dnn" or \
@@ -596,11 +603,11 @@ class trn(ond):
             print("main: Evaluating the model on in-sample data (training data)")
             numpy_eval = self._get_3d_tensor(self.train_data[self.lagged_cols_reordered]. \
                 to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
-            self.model.evaluate(numpy_eval, self.train_labels["dir"].to_numpy(), verbose=True)
+            self.model.evaluate(numpy_eval, self.train_targets["dir"].to_numpy(), verbose=True)
             print("main: valuating the model on out-of-sample data (test data)")
             numpy_test = self._get_3d_tensor(self.test_data[self.lagged_cols_reordered]. \
                 to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
-            self.model.evaluate(numpy_test, self.test_labels["dir"].to_numpy(), verbose=True)
+            self.model.evaluate(numpy_test, self.test_targets["dir"].to_numpy(), verbose=True)
 
         return
 
@@ -667,7 +674,7 @@ class trd(ond, tpqoa.tpqoa):
         return
 
 
-    def test(self, data, labels):
+    def test(self, data, targets):
         '''
         test the (model,strategy) pair on the passed, and compare the buy&hold with
         the chosen strategy. Ideally estimation of trading costs should be included
@@ -976,7 +983,7 @@ class ctrl:
 
         self.instrument_files = instrument_files
         self.instruments = [t.instrument for t in self.instrument_files]
-        self.labels = [t.labels for t in self.instrument_files]  # "dir", "profit_over_spread", "loss_over_spread"]
+        self.targets = [t.targets for t in self.instrument_files]  # "dir", "profit_over_spread", "loss_over_spread"]
         self.features = [t.features for t in self.instrument_files]
         self.lags = [t.lags for t in self.instrument_files]
 
@@ -1033,7 +1040,7 @@ if __name__ == '__main__':
                              conf_file=cfg.conf_file)
 
     print('OandaDataCollector object created for instrument {}'.format(cfginst.instrument))
-    NEW_DATA = True
+    NEW_DATA = False
     if NEW_DATA:
         # actual data collection of most recent data
         print('OandaDataCollector data collection starts...')
@@ -1057,3 +1064,28 @@ if __name__ == '__main__':
         # odc.make_features()
         # odc.make_lagged_features()
         # odc.report()
+
+    # Todo: do this selection better and not via string. This should reference via dict to the model
+    model_id = "LSTM_dnn_all_states"# "LSTM_dnn" #"ffn" #""dnn1"
+    model_trainer = trn(instrument_file=cfginst,
+                        conf_file=cfg.conf_file,
+                        model_id=model_id)
+
+    logging.info("Loading data and creating the NN model...")
+    model_trainer.load_train_data()
+    model_trainer.set_model()
+
+    logging.info("Training the NN model...")
+    model_trainer.train_model(epochs=50)
+
+    logging.info("Evaluating the NN model...")
+    model_trainer.evaluate_model()
+
+    logging.info("Predictions with the NN model...")
+    model_trainer.make_predictions()
+
+    logging.info("Saving the NN model...")
+    model_trainer.save_model()
+
+    # Todo: would it better to make a parent class for training and inherit from that to create ad-hoc trainers
+    # per each model in models?? seems more what I want...

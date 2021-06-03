@@ -138,15 +138,15 @@ if __name__ == '__main__':
                                 index_col="time", parse_dates=True, header=0)
         # valid not used for now, using keras support but that uses
         # std and mean computed on the train+valid data
-        train_labels = pd.read_csv(namefiles_dict["train_labl_filename"],
+        train_targets = pd.read_csv(namefiles_dict["train_labl_filename"],
                                    index_col="time", parse_dates=True, header=0)
-        test_labels = pd.read_csv(namefiles_dict["test_labl_filename"],
+        test_targets = pd.read_csv(namefiles_dict["test_labl_filename"],
                                   index_col="time", parse_dates=True, header=0)
 
         #trader.prepare_data() ### necessary? maybe not if I take data prepared by getpreparedata.py
         if BCKTESTING:
-            trader.test(train_data, train_labels)
+            trader.test(train_data, train_targets)
 
         else: # fwtesting
-            trader.test(test_data, test_labels)
+            trader.test(test_data, test_targets)
 

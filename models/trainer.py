@@ -57,9 +57,9 @@ class DL_Trainer():
         self.train_data = None
         self.test_data = None
         self.validation_data = None
-        self.validation_labels = None
-        self.train_labels = None
-        self.test_labels = None
+        self.validation_targets = None
+        self.train_targets = None
+        self.test_targets = None
         self.lagged_cols = []
         self.lagged_cols_reordered = []
         return
@@ -74,11 +74,11 @@ class DL_Trainer():
         self.validation_data = pd.read_csv(self.namefiles_dict["valid_filename"],
                                    index_col="time", parse_dates=True, header=0)
 
-        self.train_labels = pd.read_csv(self.namefiles_dict["train_labl_filename"],
+        self.train_targets = pd.read_csv(self.namefiles_dict["train_labl_filename"],
                                    index_col="time", parse_dates=True, header=0)
-        self.test_labels = pd.read_csv(self.namefiles_dict["test_labl_filename"],
+        self.test_targets = pd.read_csv(self.namefiles_dict["test_labl_filename"],
                                    index_col="time", parse_dates=True, header=0)
-        self.validation_labels = pd.read_csv(self.namefiles_dict["valid_labl_filename"],
+        self.validation_targets = pd.read_csv(self.namefiles_dict["valid_labl_filename"],
                                    index_col="time", parse_dates=True, header=0)
 
         # Todo: make this step unified and linked to instrument specific configuration
@@ -101,8 +101,8 @@ class DL_Trainer():
         print("self.train_data.head()\n",self.train_data.head())
         assert (not self.train_data[self.lagged_cols].isnull().values.any()), \
             "NANs in Training Data"
-        assert (not self.train_labels["dir"].isnull().values.any()), \
-            "NANs in LABELS"
+        assert (not self.train_targets["dir"].isnull().values.any()), \
+            "NANs in targets"
         return # train and test data loaded. Validation carved out by Keras from training data
 
     def set_model(self):
@@ -137,14 +137,14 @@ class DL_Trainer():
         if self.model_id == "ffn" or self.model_id == "ffn": #todo : do this better
 
             r = self.model.fit(x=self.train_data[self.lagged_cols],
-                          y=self.train_labels["dir"],
+                          y=self.train_targets["dir"],
                           epochs=epochs,
                           verbose=True,
                           validation_data=(self.validation_data[self.lagged_cols],
-                                           self.validation_labels["dir"]),
+                                           self.validation_targets["dir"]),
                           shuffle=True,
                           batch_size=64,
-                          class_weight=m.cw(self.train_labels))
+                          class_weight=m.cw(self.train_targets))
 
         elif self.model_id == "LSTM_dnn" or \
                 self.model_id ==  "LSTM_dnn_all_states":
@@ -157,14 +157,14 @@ class DL_Trainer():
 
             print("numpy_train.shape ",numpy_train.shape)
             r = self.model.fit(x = numpy_train,
-                      y = self.train_labels["dir"].to_numpy(),
+                      y = self.train_targets["dir"].to_numpy(),
                       epochs = epochs,
                       verbose = True,
                       validation_data=(numpy_val,
-                                       self.validation_labels["dir"].to_numpy()),
+                                       self.validation_targets["dir"].to_numpy()),
                       shuffle = True,
                       batch_size=64,  # Todo make BS a param
-                      class_weight = m.cw(self.train_labels))
+                      class_weight = m.cw(self.train_targets))
 
 
         # get some visualization of the effect of learning (on weights, loss, acc)
@@ -199,20 +199,20 @@ class DL_Trainer():
         print("\n")
         if self.model_id == "ffn" or self.model_id == "ffn":  # todo : do this better
             print("main: Evaluating the model on in-sample data (training data)")
-            self.model.evaluate(self.train_data[self.lagged_cols], self.train_labels["dir"], verbose=True)
+            self.model.evaluate(self.train_data[self.lagged_cols], self.train_targets["dir"], verbose=True)
             print("main: valuating the model on out-of-sample data (test data)")
-            self.model.evaluate(self.test_data[self.lagged_cols], self.test_labels["dir"], verbose=True)
+            self.model.evaluate(self.test_data[self.lagged_cols], self.test_targets["dir"], verbose=True)
             # Todo: why evaluate does not show the accuracy?
         elif self.model_id == "LSTM_dnn" or \
                 self.model_id ==  "LSTM_dnn_all_states":
             print("main: Evaluating the model on in-sample data (training data)")
             numpy_eval = self._get_3d_tensor(self.train_data[self.lagged_cols_reordered]. \
                 to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
-            self.model.evaluate(numpy_eval, self.train_labels["dir"].to_numpy(), verbose=True)
+            self.model.evaluate(numpy_eval, self.train_targets["dir"].to_numpy(), verbose=True)
             print("main: valuating the model on out-of-sample data (test data)")
             numpy_test = self._get_3d_tensor(self.test_data[self.lagged_cols_reordered]. \
                 to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
-            self.model.evaluate(numpy_test, self.test_labels["dir"].to_numpy(), verbose=True)
+            self.model.evaluate(numpy_test, self.test_targets["dir"].to_numpy(), verbose=True)
         return
 
 

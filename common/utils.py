@@ -13,7 +13,7 @@ sys.path.append('../')
 
 
 def make_features(df, sma_int, window, ref_price = None, fwsma1 = 3, fwsma2 = 5, mom_win = 3, epsilon=10e-8):
-    ''' Creates features  and labels, using ref_price as input and half_spread
+    ''' Creates features  and targets, using ref_price as input and half_spread
     (estimation of half cost for each position.
      sma_int and window are used to compute sma feature and bollinger related features
 
@@ -117,9 +117,9 @@ def creates_filenames_dict(instrument, namefiles_dict, cfg):
     namefiles_dict["train_filename"] = namefiles_dict["train_folder"] + "train.csv"
     namefiles_dict["valid_filename"] = namefiles_dict["valid_folder"] + "valid.csv"
     namefiles_dict["test_filename"] = namefiles_dict["test_folder"] + "test.csv"
-    namefiles_dict["train_labl_filename"] = namefiles_dict["train_folder"] + "trainlabels.csv"
-    namefiles_dict["valid_labl_filename"] = namefiles_dict["valid_folder"] + "validlabels.csv"
-    namefiles_dict["test_labl_filename"] = namefiles_dict["test_folder"] + "testlabels.csv"
+    namefiles_dict["train_labl_filename"] = namefiles_dict["train_folder"] + "traintargets.csv"
+    namefiles_dict["valid_labl_filename"] = namefiles_dict["valid_folder"] + "validtargets.csv"
+    namefiles_dict["test_labl_filename"] = namefiles_dict["test_folder"] + "testtargets.csv"
     namefiles_dict["params"] = namefiles_dict["train_folder"] + "params.pkl"
     return namefiles_dict
 

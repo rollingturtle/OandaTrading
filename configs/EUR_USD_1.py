@@ -11,7 +11,7 @@ brl = "1min"  # bar lenght for resampling
 window = 10
 sma_int = 5
 half_spread = 0.00007
-labels = ["dir", "profit_over_spread", "loss_over_spread"]
+targets = ["dir", "profit_over_spread", "loss_over_spread"]
 features = ["dir", "sma", "boll", "min", "max", "mom", "vol",
                  "profit_over_spread", "loss_over_spread"]
 

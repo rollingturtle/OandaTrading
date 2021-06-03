@@ -17,23 +17,22 @@ as jpnb: trader_ml.py, trainer.py, getpreparedata.py
    and therefore std goes to 0. Review how to work with it, for now replaced / with *...
 - try go multithreaded for data collection
 - see how to get the instant spread value from Oanda (2 threads with 2 stream?)
-
-
-Todo (Backlog):
-
 - review the target for the model: what I may want to get is whether or not the average of the
 log returns in the next, say, 6 steps (t+0=NOW -> t+5), is positive or negative.
 Even better, if it is greater than the spread at time t
 Averaging log returns should yield an entity that is smoother and possibly easier to predict.
+- review dimensionality and balance of feature values, review features
+- Add more features on make_features utility, not only from close price. Now get_most_recent obtains
+info for bid and ask prices, and also volume can be informative
+
+Todo (Backlog):
+
 
 - get bid and ask for historical and do better backtesting/fwtesting with better trading cost estimation
 maybe with the assumption that spread does not change much
 In general, include spread in strategy, or simply make sure trading happens in busy hours when spread is low
 
-- Add more features on make_features utility, not only from close price. Now get_most_recent obtains
-info for bid and ask prices, and also volume can be informative
 
-- review dimensionality and balance of feature values, review features
 - consider Time Conv Net
 
 - First step towards control_class: all with 1 instrument, but pull everything under control_class

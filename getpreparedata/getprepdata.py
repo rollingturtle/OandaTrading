@@ -25,7 +25,7 @@ class OandaDataCollector():
 
         self.instrument_file = instrument_file
         self.instrument = instrument_file.instrument
-        self.labels = instrument_file.labels #"dir", "profit_over_spread", "loss_over_spread"]
+        self.targets = instrument_file.targets #"dir", "profit_over_spread", "loss_over_spread"]
         self.features = instrument_file.features
         self.lags = instrument_file.lags
 
@@ -78,7 +78,7 @@ class OandaDataCollector():
         self.raw_data_featured_resampled = pd.read_csv(
             self.namefiles_dict["raw_data_featured_resampled_file_name"], index_col="time", parse_dates=True, header=0)
 
-        # loading 3 datasets, standardized, which contains also the columns for labels
+        # loading 3 datasets, standardized, which contains also the columns for targets
         self.train_ds_std = \
             pd.read_csv(self.namefiles_dict["train_filename"], index_col="time", parse_dates=True, header=0)
         self.validation_ds_std = \
@@ -262,11 +262,11 @@ class OandaDataCollector():
             self.namefiles_dict["test_filename"]))
         logging.info('save_to_file: saving data label files to {}'.format(
             self.namefiles_dict["base_data_folder_name"]))
-        self.train_ds[self.labels].to_csv(self.namefiles_dict["train_labl_filename"],
+        self.train_ds[self.targets].to_csv(self.namefiles_dict["train_labl_filename"],
                              index = True, header=True)
-        self.validation_ds[self.labels].to_csv(self.namefiles_dict["valid_labl_filename"],
+        self.validation_ds[self.targets].to_csv(self.namefiles_dict["valid_labl_filename"],
                              index = True, header=True)
-        self.test_ds[self.labels].to_csv(self.namefiles_dict["test_labl_filename"],
+        self.test_ds[self.targets].to_csv(self.namefiles_dict["test_labl_filename"],
                              index = True, header=True)
         logging.info('save_to_file: saving params to file {}'.format(
             self.namefiles_dict["train_folder"]  + "params.pkl"))

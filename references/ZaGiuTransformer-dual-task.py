@@ -163,7 +163,7 @@ k_time = 100000
 ax1 = fig.add_subplot(211)
 ax1.plot(df['close'], label='BTC close Price')
 ax1.set_xticks(range(0, df.shape[0], k_time))
-ax1.set_xticklabels(df['datetime'].loc[::k_time])
+ax1.set_xticktargets(df['datetime'].loc[::k_time])
 ax1.set_ylabel('close Price', fontsize=18)
 ax1.legend(loc="upper left", fontsize=12)
 
@@ -179,26 +179,26 @@ ax1 = fig.add_subplot(311)
 ax1.plot(btc_data['close'], label='BTC close Price smoothed')
 ax1.plot(dforig['close'][-back_in_time + moving_average_width:], label='BTC close Price original')
 # ax1.set_xticks(range(0, df.shape[0], 1464))
-# ax1.set_xticklabels(df['datetime'].loc[::1464])
+# ax1.set_xticktargets(df['datetime'].loc[::1464])
 ax1.set_ylabel('close Price', fontsize=18)
 ax1.legend(loc="upper left", fontsize=12)
 
 ax1 = fig.add_subplot(312)
 ax1.plot(dforig['close'][-back_in_time + moving_average_width:], label='BTC close Price original')
 # ax1.set_xticks(range(0, df.shape[0], 1464))
-# ax1.set_xticklabels(df['datetime'].loc[::1464])
+# ax1.set_xticktargets(df['datetime'].loc[::1464])
 ax1.set_ylabel('close Price', fontsize=18)
 ax1.legend(loc="upper left", fontsize=12)
 
 ax1 = fig.add_subplot(313)
 ax1.plot(btc_data['close_sm'], label='BTC close Price smoothed')
 # ax1.set_xticks(range(0, df.shape[0], 1464))
-# ax1.set_xticklabels(df['datetime'].loc[::1464])
+# ax1.set_xticktargets(df['datetime'].loc[::1464])
 ax1.set_ylabel('close Price', fontsize=18)
 ax1.legend(loc="upper left", fontsize=12)
 
 
-# # Classification Task Definitions, addition of target/labels columns for regression and calssifications
+# # Classification Task Definitions, addition of target/targets columns for regression and calssifications
 
 # In[14]:
 
@@ -210,9 +210,9 @@ btc_data['close'].shift()
 # In[15]:
 
 
-# Generating labels for 3 binary classification tasks
+# Generating targets for 3 binary classification tasks
 # Need to generate a label for each instant
-# labels assignment policy:
+# targets assignment policy:
 # if mid_(t+1) - mid_t > 5 ==>  (BUY)
 # if mid_(t+1) - mid_t < -5 ==>  (SELL)
 # otherwise ==> (DoNothing)
@@ -237,7 +237,7 @@ btc_data['sell_flag'] = close_deltas
 # removing NaNs
 btc_data.dropna(subset=['buy_flag', 'sell_flag'], inplace=True) # drop rows where nan are present
 
-# making them truth values (labels)
+# making them truth values (targets)
 btc_data['buy_flag'] = btc_data['buy_flag']  > buy_threshold
 btc_data['sell_flag'] = btc_data['sell_flag'] < sell_threshold
 # 3rd redundant task
@@ -258,7 +258,7 @@ btc_data['sell_flag_long_term'] = close_delta_long_term
 # removing NaN
 btc_data.dropna(subset=['buy_buy_flag_long_termflag', 'sell_flag_long_term'], inplace=True) # drop rows where nan are present
 
-# making them truth values (labels)
+# making them truth values (targets)
 btc_data['buy_flag_long_term'] = btc_data['buy_flag_long_term']  > buy_threshold_long_interval
 btc_data['sell_flag_long_term'] = btc_data['sell_flag_long_term'] < sell_threshold_long_interval
 # 3rd redundant task
@@ -268,7 +268,7 @@ btc_data['donothing_flag'] = (close_deltas > sell_threshold_long_interval) & (cl
 
 '''
 
-# trick to make labels numericals
+# trick to make targets numericals
 btc_data = btc_data * 1
 btc_data
 
@@ -839,7 +839,7 @@ ax31.legend(loc="best", fontsize=12)
 
 print("Shape of predictions:")
 print([test_pred[l].shape for l in range(0,4)])
-print("Shapes of labels:")
+print("Shapes of targets:")
 print([y_test[:,l].shape for l in range(0,4)])
 
 

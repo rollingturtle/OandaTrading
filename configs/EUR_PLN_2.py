@@ -14,10 +14,11 @@ brl = "1min"  # bar lenght for resampling
 window = 10
 sma_int = 5
 half_spread = 0.00007
-labels = ["dir", "dir_sma1", "dir_sma2"]
-features = ["dir", "sma_diff", "boll", "min", "max", "mom", "vol", "volume",
+targets = ["dir", "dir_sma1", "dir_sma2"]
+features = ["dir", "dir_sma1", "dir_sma2", "sma_diff",
+            "boll", "min", "max", "mom", "vol", "volume",
             "o", "h", "l", "spread", instrument]
-                 #"profit_over_spread", "loss_over_spread"] # Todo: reintegrate these as features
+
 
 granul="S5"
 days = 2
