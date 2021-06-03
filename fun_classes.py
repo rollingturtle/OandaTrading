@@ -6,7 +6,6 @@ import sys
 import os
 sys.path.append('../')
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-sys.path.append('../')
 
 # data
 import pandas as pd
@@ -111,7 +110,6 @@ class gdt(ond):
                          "test_ds_std"                : self.test_ds_std}
 
         gdt.check_create_path(self.namefiles_dict)
-
         return
 
     @classmethod
@@ -125,6 +123,7 @@ class gdt(ond):
             os.mkdir(namefiles_dict["train_folder"])
             os.mkdir(namefiles_dict["valid_folder"])
             os.mkdir(namefiles_dict["test_folder"])
+        return
 
     @classmethod
     def _load_data_from_file(cls, namefiles_dict):
@@ -233,13 +232,24 @@ class gdt(ond):
 
         # combine price information to derive the spread
         for p in "ohlc":
-            print(p)
             self.raw_data['sprd_{}'.format(p)] = self.ask_df['{}'.format(p)] - \
                                                  self.bid_df['{}'.format(p)]
             self.raw_data['ask_{}'.format(p)] = self.ask_df['{}'.format(p)]
             self.raw_data['bid_{}'.format(p)] = self.bid_df['{}'.format(p)]
-        self.raw_data['volume'] = self.ask_df["volume"]
-        self.raw_data['c'] = (self.ask_df["c"] + self.bid_df['c'])/2
+        self.raw_data['volume'] = (self.ask_df["volume"] +  self.bid_df["volume"])/2
+
+        # averaging o,h,c,l values between ask and bid
+        for p in "ohlc":
+            self.raw_data[p] = (self.ask_df[p] + self.bid_df[p])/2
+
+        # averaging spread across o,h,l,c
+        col = self.raw_data.loc[:, ['sprd_{}'.format(p) for p in "ohlc"]]
+        self.raw_data["spread"] = col.mean(axis=1)
+
+        # dropping all temporary columns
+        self.raw_data.drop(columns=[ p for p in self.raw_data.columns if "_" in p ], inplace=True)
+
+        # renaming c as instrument as it will be used as reference price
         self.raw_data.rename(columns={"c": self.instrument}, inplace=True)
 
         print("get_most_recent: self.raw_data.info() ", self.raw_data.info())
@@ -263,11 +273,11 @@ class gdt(ond):
             "make_features: the dataframe length is not greater than the Bollinger window"
 
         # Creating features from ref_price
-        self.raw_data_featured = u.make_features(df, sma_int, window, half_spread, ref_price=ref_price )
-        # TODO: make features should be enriched of other features, not only those obtained from single ref_price value!
+        self.raw_data_featured = u.make_features(df, sma_int, window, ref_price=ref_price )
 
         logging.info("make_features: created new features and added to self.raw_data_featured")
         print("make_features: self.raw_data_featured.columns ", self.raw_data_featured.columns)
+
         assert (not self.raw_data_featured.isnull().values.any()), \
             "make_features: 1-NANs in self.raw_data_featured"
         return
@@ -286,6 +296,7 @@ class gdt(ond):
 
         assert (not self.raw_data_featured.isnull().values.any()), \
             "make_lagged_features: 2-NANs in self.raw_data_featured"
+
         logging.info("make_lagged_features: created new features and added to self.raw_data_featured")
         return
 

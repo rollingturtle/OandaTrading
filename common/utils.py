@@ -12,7 +12,7 @@ import sys
 sys.path.append('../')
 
 
-def make_features(df, sma_int, window, half_spread, ref_price, epsilon=10e-8):
+def make_features(df, sma_int, window, ref_price = None, fwsma1 = 3, fwsma2 = 5, mom_win = 3, epsilon=10e-8):
     ''' Creates features  and labels, using ref_price as input and half_spread
     (estimation of half cost for each position.
      sma_int and window are used to compute sma feature and bollinger related features
@@ -38,26 +38,49 @@ def make_features(df, sma_int, window, half_spread, ref_price, epsilon=10e-8):
         price(t) < price(t-1) * (1 - 0,,0007) SELL (go short)==> lret(t) < lg(1 - 0,00007) go short
         '''
 
+    # Todo: now df contains o,l,h, volume and spread data along with reference price
+    # Todo: add then new features AND above all, new tasks like:
+    # Todo: predict the sma direction computed like [now, now+1, ... now+K]
+    #
     # log returns: fundamental quantity
     df["returns"] = np.log(df[ref_price] / df[ref_price].shift())
 
-    # same labels to identify direction and amount of change
-    df["dir"] = np.where(df["returns"] > 0, 1, 0)  # market direction
-    df["profit_over_spread"] = np.where(df["returns"] > np.log(1 + half_spread), 1, 0)  # profit over spread
-    df["loss_over_spread"] = np.where(df["returns"] < np.log(1 - half_spread), 1, 0)  # loss under spread
+    df["sma_diff"] = df[ref_price].rolling(window).mean() - df[ref_price].rolling(sma_int).mean()
+
+    df["boll1"] = (df[ref_price] - df[ref_price].rolling(window).mean()) #/ df[ref_price].rolling(window).std()
+    df["boll_std"] = df[ref_price].rolling(window).std() # this can go to 0!!!
+
+    df["min"] = df[ref_price].rolling(window).min() / df[ref_price] - 1
+    df["max"] = df[ref_price].rolling(window).max() / df[ref_price] - 1
+    df["mom"] = df["returns"].rolling(mom_win).mean()  # todo make this 3 a param
+    df["vol"] = df["returns"].rolling(window).std()
+    df.dropna(inplace=True)
+
+    df["boll"] = df["boll1"] /(epsilon +  df["boll_std"])
+    df.drop(columns=["boll_std","boll1"], inplace=True)
+
+
+    half_spread = 0.5 * np.array(df["spread"])
+    # make targets
+    # target: identify market direction
+    df["dir"] = np.where(df["returns"] > 0, 1, 0)
+
+    indexer = pd.api.indexers.FixedForwardWindowIndexer(window_size=fwsma1)
+    df["fw_sma1"] = df[ref_price].rolling(window=indexer).mean() # , min_periods=1
+    df["fw_sma1"].shift()
+
+    indexer = pd.api.indexers.FixedForwardWindowIndexer(window_size=fwsma2) # Todo: add param for this
+    df["fw_sma2"] = df[ref_price].rolling(window=indexer).mean() # , min_periods=1
+    df["fw_sma2"].shift()
+    df.dropna(inplace=True)
+
+    df["dir_sma1"] = np.where(df["fw_sma1"] > df[ref_price], 1, 0)
+    df["dir_sma2"] = np.where(df["fw_sma2"] > df[ref_price], 1, 0)
+    # df["profit_over_spread"] = np.where(df["returns"] > np.log(1 + half_spread), 1, 0)  # profit over spread
+    # df["loss_over_spread"] = np.where(df["returns"] < np.log(1 - half_spread), 1, 0)  # loss under spread
     # Todo: consider a label based on whether or not the rolling mean of the log returns
     # in the next steps is positive or negative
 
-    df["sma"] = df[ref_price].rolling(window).mean() - df[ref_price].rolling(sma_int).mean()
-    df["boll1"] = (df[ref_price] - df[ref_price].rolling(window).mean()) #/ df[ref_price].rolling(window).std()
-    df["boll_std"] = df[ref_price].rolling(window).std() # this can go to 0!!!
-    df["min"] = df[ref_price].rolling(window).min() / df[ref_price] - 1
-    df["max"] = df[ref_price].rolling(window).max() / df[ref_price] - 1
-    df["mom"] = df["returns"].rolling(3).mean()  # todo make this 3 a param
-    df["vol"] = df["returns"].rolling(window).std()
-    df.dropna(inplace=True)
-    df["boll"] = df["boll1"] /(epsilon +  df["boll_std"])
-    df.drop(columns=["boll_std","boll1"], inplace=True)
     return df
 
 def make_lagged_features(df, features, lags=5):
