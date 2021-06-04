@@ -28,8 +28,8 @@ split_pcs = (0.7, 0.10, 0.20)
 stop_trading = 500
 
 #trading thresholds for probability
-lower_go_short = 0.2#0.4
-higher_go_long = 0.8#0.6
+lower_go_short = 0.4#0.4
+higher_go_long = 0.6#0.6
 
 # bulk trade
 units = 1000

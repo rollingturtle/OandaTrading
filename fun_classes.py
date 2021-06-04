@@ -38,8 +38,8 @@ class ond: # Todo: should be abstract class?
     '''
     Base class for classes directly communicating to Oanda service
     '''
-    def __init__(self,conf_file,  # oanda user conf file: todo: should I set it here?? NO
-                 instrument_file): # instrument conf file
+    def __init__(self,conf_file=None,  # oanda user conf file: todo: should I set it here?? NO
+                 instrument_file=None): # instrument conf file
 
         self.instrument_file = instrument_file
         self.instrument = instrument_file.instrument
@@ -70,7 +70,7 @@ class gdt(ond):
     '''
 
     def __init__(self,
-                 conf_file, # General conf file, which includes reference to Oanda conf file
+                 conf_file, # General conf Oanda conf file
                  instrument_file):  # instrument conf file
 
         super(gdt, self).__init__(conf_file, instrument_file)
@@ -419,11 +419,11 @@ class trn(ond):
     '''
 
     def __init__(self,
-                 conf_file=None, # General conf file, which includes reference to Oanda conf file
+                 conf_file=None, # General conf Oanda conf file
                  instrument_file=None,  # instrument conf file
                  model_id=None):
 
-        super(trn, self).__init__(instrument_file, conf_file)
+        super(trn, self).__init__(instrument_file=instrument_file, conf_file=conf_file)
 
         assert model_id in m.available_models, \
             "DL_Trainer: init: model_id not among known models"
@@ -602,11 +602,12 @@ class trn(ond):
 
             print("main: Evaluating the model on in-sample data (training data)")
             numpy_eval = self._get_3d_tensor(self.train_data[self.lagged_cols_reordered]. \
-                to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
+                to_numpy(), cfginst)
             self.model.evaluate(numpy_eval, self.train_targets["dir"].to_numpy(), verbose=True)
+
             print("main: valuating the model on out-of-sample data (test data)")
             numpy_test = self._get_3d_tensor(self.test_data[self.lagged_cols_reordered]. \
-                to_numpy()) #.reshape(-1, cfginst.lags, len(cfginst.features))
+                to_numpy(), cfginst)
             self.model.evaluate(numpy_test, self.test_targets["dir"].to_numpy(), verbose=True)
 
         return
@@ -618,7 +619,7 @@ class trn(ond):
         elif self.model_id == "LSTM_dnn" or \
                 self.model_id ==  "LSTM_dnn_all_states":
             numpy_train = self._get_3d_tensor(self.train_data[self.lagged_cols_reordered]. \
-                to_numpy())
+                to_numpy(), cfginst)
             pred = self.model.predict(numpy_train, verbose=True)
         print(pred)
         return
@@ -631,13 +632,14 @@ class trd(ond, tpqoa.tpqoa):
     '''
 
     def __init__(self,
-                 conf_file,
-                 instrument_file,
-                 model_id,
-                 mu, std):
+                 conf_file=None,
+                 instrument_file=None,
+                 model_id=None,
+                 mu=None,
+                 std=None):
 
-        tpqoa.tpqoa.__init__(conf_file)
-        ond.__init__(instrument_file, conf_file)
+        tpqoa.tpqoa.__init__(self, conf_file=conf_file)
+        ond.__init__(self, instrument_file=instrument_file, conf_file=conf_file)
 
         self.position = 0
         self.window = instrument_file.window
@@ -674,7 +676,7 @@ class trd(ond, tpqoa.tpqoa):
         return
 
 
-    def test(self, data, targets):
+    def test(self, data):
         '''
         test the (model,strategy) pair on the passed, and compare the buy&hold with
         the chosen strategy. Ideally estimation of trading costs should be included
@@ -697,15 +699,15 @@ class trd(ond, tpqoa.tpqoa):
         # but likely the returns I have access here are standardized..
         # Todo: review how to grant access to returns here, and see if access to standardized is doable
         test_outs["strategy_gross"] = test_outs["position"] * \
-                                      (data["returns"] * self.std["returns"]
-                                                         + self.mu["returns"]) #de-standardizing
+                                      (data["returns"]) # * self.std["returns"]
+                                                        # + self.mu["returns"]) #de-standardizing
         # determine when a trade takes place
         test_outs["trades"] = test_outs["position"].diff().fillna(0).abs()
         # subtract transaction costs from return when trade takes place
         test_outs['strategy'] = test_outs["strategy_gross"] - test_outs["trades"] * self.half_spread
         # calculate cumulative returns for strategy & buy and hold
-        test_outs["creturns"] = (data["returns"] * self.std["returns"]
-                                 + self.mu["returns"]).cumsum().apply(np.exp)
+        test_outs["creturns"] = (data["returns"]).cumsum().apply(np.exp) # * self.std["returns"]
+                                 #+ self.mu["returns"])
         test_outs["cstrategy"] = test_outs['strategy'].cumsum().apply(np.exp)
         test_outs["cstrategy_gross"] = test_outs['strategy_gross'].cumsum().apply(np.exp)
         results = test_outs
@@ -910,7 +912,7 @@ class trd(ond, tpqoa.tpqoa):
                     lagged_cols.append(col)
             df["proba"] = self.model.predict(df[lagged_cols])
 
-        elif self.model_id == "LSTM_dnn":
+        elif self.model_id == "LSTM_dnn" or self.model_id == "LSTM_dnn_all_states":
             # reoder features
             for lag in range(1, self.lags + 1):
                 for feat in self.features:
@@ -1036,8 +1038,7 @@ if __name__ == '__main__':
     ####  wanted/needed configuration
     import configs.EUR_PLN_2 as cfginst
 
-    odc = gdt(instrument_file=cfginst,
-                             conf_file=cfg.conf_file)
+    odc = gdt(instrument_file=cfginst, conf_file=cfg.conf_file)
 
     print('OandaDataCollector object created for instrument {}'.format(cfginst.instrument))
     NEW_DATA = False
@@ -1067,25 +1068,91 @@ if __name__ == '__main__':
 
     # Todo: do this selection better and not via string. This should reference via dict to the model
     model_id = "LSTM_dnn_all_states"# "LSTM_dnn" #"ffn" #""dnn1"
-    model_trainer = trn(instrument_file=cfginst,
-                        conf_file=cfg.conf_file,
-                        model_id=model_id)
 
-    logging.info("Loading data and creating the NN model...")
-    model_trainer.load_train_data()
-    model_trainer.set_model()
+    TRAIN = False
+    if TRAIN:
+        model_trainer = trn(instrument_file=cfginst,
+                            conf_file=cfg.conf_file,
+                            model_id=model_id)
 
-    logging.info("Training the NN model...")
-    model_trainer.train_model(epochs=50)
+        logging.info("Loading data and creating the NN model...")
+        model_trainer.load_train_data()
+        model_trainer.set_model()
 
-    logging.info("Evaluating the NN model...")
-    model_trainer.evaluate_model()
+        logging.info("Training the NN model...")
+        model_trainer.train_model(epochs=50)
 
-    logging.info("Predictions with the NN model...")
-    model_trainer.make_predictions()
+        logging.info("Evaluating the NN model...")
+        model_trainer.evaluate_model()
 
-    logging.info("Saving the NN model...")
-    model_trainer.save_model()
+        logging.info("Predictions with the NN model...")
+        model_trainer.make_predictions()
 
-    # Todo: would it better to make a parent class for training and inherit from that to create ad-hoc trainers
-    # per each model in models?? seems more what I want...
+        logging.info("Saving the NN model...")
+        model_trainer.save_model()
+
+        # Todo: would it better to make a parent class for training and inherit from that to create ad-hoc trainers
+        # per each model in models?? seems more what I want...
+
+    # Todo: review, should not be necessary to pass the instrument here...
+    instrument = cfginst.instrument
+    # get or generate datafiles files and folders, if do not exist
+    namefiles_dict = {}
+    namefiles_dict = u.creates_filenames_dict(instrument, namefiles_dict, cfg)
+
+    # load params for data standardization
+    params = pickle.load(open(namefiles_dict["params"], "rb"))
+    mu = params["mu"]
+    std = params["std"]
+
+    # load trained model
+    model_id = "LSTM_dnn_all_states"  # "LSTM_dnn" #"ffn" #DNN_model
+    # create trader object using instrument configuration details
+    trader = trd(conf_file=cfg.conf_file,
+                 instrument_file=cfginst,
+                 model_id=model_id,
+                 mu=mu,
+                 std=std)
+
+    # either live trading or testing (back or fw testing)
+    TRADING = 0
+    BCKTESTING, FWTESTING = (1, 0) if not TRADING else (0, 0)  # todo: do it better!!
+
+    if TRADING:
+        trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data
+        logging.info("main: most recent historical data obtained and resampled" +
+                     "now starting streaming data and trading...")
+        trader.stream_data(cfginst.instrument, stop=cfginst.stop_trading)  # streaming & trading here!!!!
+
+        if trader.position != 0:
+            print("Closing position as we are ending trading!")
+            close_order = trader.create_order(instrument=cfginst.instrument,
+                                              units=-trader.position * trader.units,
+                                              suppress=True, ret=True)  # close Final Position
+            trader.report_trade(close_order, "GOING NEUTRAL")  # report Final Trade
+    else:  # TESTING
+        # loading data
+        assert os.path.exists(namefiles_dict["base_data_folder_name"]),\
+            "Base data folder DO NOT exists!"
+
+        train_data = pd.read_csv(namefiles_dict["train_filename"],
+                                 index_col="time", parse_dates=True, header=0)
+        test_data = pd.read_csv(namefiles_dict["test_filename"],
+                                index_col="time", parse_dates=True, header=0)
+
+        train_targets = pd.read_csv(namefiles_dict["train_labl_filename"],
+                                    index_col="time", parse_dates=True, header=0)
+        test_targets = pd.read_csv(namefiles_dict["test_labl_filename"],
+                                   index_col="time", parse_dates=True, header=0)
+
+        data_with_returns = pd.read_csv(namefiles_dict["raw_data_featured_resampled_file_name"],
+                                    index_col="time", parse_dates=True, header=0)
+
+
+        # trader.prepare_data() ### necessary? maybe not if I take data prepared by getpreparedata.py
+        if BCKTESTING:
+
+            trader.test(data_with_returns)
+
+        else:  # fwtesting
+            trader.test(test_data)

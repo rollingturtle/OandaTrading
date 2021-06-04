@@ -275,18 +275,11 @@ if __name__ == "__main__":
     ####  wanted/needed configuration
     import configs.EUR_PLN_2 as cfginst
 
-<<<<<<< HEAD
-    namefiles_dict = {}
-    namefiles_dict = u.creates_filenames_dict(
-        cfginst.instrument,
-        namefiles_dict, cfg)
-=======
 
     instrument = cfginst.instrument
     # get or generate datafiles files and folders, if do not exist
     namefiles_dict = {}
     namefiles_dict = u.creates_filenames_dict(instrument, namefiles_dict, cfg)
->>>>>>> master
 
     #load params for data standardization
     params = pickle.load(open(namefiles_dict["params"], "rb"))
