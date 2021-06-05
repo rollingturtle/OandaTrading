@@ -126,8 +126,13 @@ def creates_filenames_dict(instrument, namefiles_dict, cfg):
     return namefiles_dict
 
 def find_string(list_of_strings, s):
-        for i, ss in enumerate(list_of_strings):
-            if s in ss:
-                index = i
-                return list_of_strings[index]
-        return -1
+    for i, ss in enumerate(list_of_strings):
+        if s in ss:
+            index = i
+            return list_of_strings[index]
+    return -1
+
+def get_split_points(df, split_pcs):
+    train_split = int(len(df) * split_pcs[0])
+    val_split = int(len(df) * (split_pcs[0] + split_pcs[1]))
+    return train_split, val_split

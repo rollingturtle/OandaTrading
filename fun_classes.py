@@ -264,7 +264,7 @@ class gdt(ond):
             "get_most_recent: 1-NANs in self.raw_data_featured" #
         return
 
-    def make_features(self, window = 10, sma_int=5, half_spread=0.00007):
+    def make_features(self, window = 10, sma_int=5):
         '''
         creates features using utils.make_features
         '''
@@ -332,6 +332,7 @@ class gdt(ond):
         logging.info("resample_data: resampled the just created new features, into self.raw_data_featured_resampled")
         return
 
+
     def make_3_datasets(self, split_pcs=(0.7, 0.10, 0.20)):
         '''
         Generate 3 datasets for ML training/evaluation/test and save to files.
@@ -348,8 +349,11 @@ class gdt(ond):
         # Making 3 input datasets
         ## Select relevant columns for input data
         input_cols = [col for col in df.columns if "lag_" in col]
-        train_split = int(len(df) * split_pcs[0])
-        val_split = int(len(df) * (split_pcs[0] + split_pcs[1]))
+        # train_split = int(len(df) * split_pcs[0])
+        # val_split = int(len(df) * (split_pcs[0] + split_pcs[1]))
+
+        train_split, val_split = u.get_split_points(df, split_pcs)
+
         self.train_ds = df[input_cols].iloc[:train_split].copy()
         self.validation_ds = df[input_cols].iloc[train_split:val_split].copy()
         self.test_ds = df[input_cols].iloc[val_split:].copy()
@@ -661,7 +665,7 @@ class trd(ond, tpqoa.tpqoa):
         self.raw_data = None
         self.data = None
         self.profits = []
-        self.half_spread = instrument_file.half_spread
+        #self.half_spread = instrument_file.half_spread
         self.sma_int = instrument_file.sma_int
         self.features = instrument_file.features
         self.h_prob_th = instrument_file.higher_go_long
@@ -673,7 +677,7 @@ class trd(ond, tpqoa.tpqoa):
         return
 
 
-    def set_model(self):
+    def set_model(self): # Todo: make this a class method, and also it is shared with trn... make it better
 
         self.model = keras.models.load_model(cfg.trained_models_path +
                                         self.instrument + "/" + self.model_id + ".h5")
@@ -682,7 +686,7 @@ class trd(ond, tpqoa.tpqoa):
         return
 
 
-    def test(self, data):
+    def test(self, data, FW=True):
         '''
         test the (model,strategy) pair on the passed, and compare the buy&hold with
         the chosen strategy. Ideally estimation of trading costs should be included
@@ -690,6 +694,19 @@ class trd(ond, tpqoa.tpqoa):
 
         test_outs = pd.DataFrame()
         self.data = data.copy()
+        (train_split, val_split) = u.get_split_points(self.data, cfginst.split_pcs)
+        if not FW:
+            self.data = self.data.iloc[:train_split]
+            test_data = self.data
+            test_type = "BW_TESTING"
+        else:
+            self.data = self.data.iloc[train_split:] #val_split:] using validation data as well to test..  review!
+            test_data = self.data
+            test_type = "FW_TESTING"
+
+        # train_ds = df[input_cols].iloc[:train_split].copy()
+        # validation_ds = df[input_cols].iloc[train_split:val_split].copy()
+        # test_ds = df[input_cols].iloc[val_split:].copy()
 
         # Predictions
         test_outs["probs"] = self.predict(TESTING=True)
@@ -705,12 +722,12 @@ class trd(ond, tpqoa.tpqoa):
         # but likely the returns I have access here are standardized..
         # Todo: review how to grant access to returns here, and see if access to standardized is doable
         test_outs["strategy_gross"] = test_outs["position"] * \
-                                      (data["returns"]) # * self.std["returns"]
+                                      (test_data["returns"]) # * self.std["returns"]
                                                         # + self.mu["returns"]) #de-standardizing
         # determine when a trade takes place
         test_outs["trades"] = test_outs["position"].diff().fillna(0).abs()
         # subtract transaction costs from return when trade takes place
-        test_outs['strategy'] = test_outs["strategy_gross"] - test_outs["trades"] * self.half_spread
+        test_outs['strategy'] = test_outs["strategy_gross"] - test_outs["trades"] * test_data["spread"]/2
         # calculate cumulative returns for strategy & buy and hold
         test_outs["creturns"] = (data["returns"]).cumsum().apply(np.exp) # * self.std["returns"]
                                  #+ self.mu["returns"])
@@ -727,12 +744,13 @@ class trd(ond, tpqoa.tpqoa):
         # plot results
         # todo: review why figures are not shown as expected
         print("plotting cumulative results of buy&hold and strategy")
-        title = "{} | Transaction Cost = {}".format(self.instrument, self.half_spread)
+        title = "{} {} | Avg Transaction Cost = {}".format(self.instrument, test_type, test_data["spread"].mean())
         results[["cstrategy",  "creturns", "cstrategy_gross"]].\
             plot(title=title, figsize=(12, 8))
         plt.show()
-        plt.figure(figsize=(12, 8))
-        plt.title("positions")
+
+        #plt.figure(figsize=(12, 8))
+        plt.title("{} {} | positions".format(self.instrument, test_type))
         #plt.plot(test_outs["trades"])
         plt.plot(test_outs["position"])
         plt.xlabel("time")
@@ -834,23 +852,8 @@ class trd(ond, tpqoa.tpqoa):
             pass
 
         # here both  self.ask_df and self.bid_df have been filled
-        ask_df = self.ask_df # Todo correct this all with self
+        ask_df = self.ask_df
         bid_df = self.bid_df
-        # make these 2 in separate threads and wait here, main thread, for completion of both
-        # # each of the 2 thread will set an event, and when both are set, main thread continues
-        # ask_df = self.get_history(instrument = self.instrument,
-        #                             start = past,
-        #                             end = now,
-        #                             granularity = granul,
-        #                             price = "A",
-        #                             localize = False).c.dropna().to_frame()
-        #
-        # bid_df = self.get_history(instrument = self.instrument,
-        #                             start = past,
-        #                             end = now,
-        #                             granularity = granul,
-        #                             price = "B",
-        #                             localize = False).c.dropna().to_frame()
 
         # combine price information to derive the spread
         for p in "ohlc":
@@ -885,12 +888,12 @@ class trd(ond, tpqoa.tpqoa):
     def prepare_data(self):
         logging.info("\nprepare_data: creating features")
 
+        # Todo: make sure the params for features match the feature params used to generate training!!
         # create base features
         df = self.raw_data.reset_index(drop=True, inplace=False)
         df = u.make_features(df,
                             self.sma_int,
                             self.window,
-                            self.half_spread, # Todo review how I call this!!
                             ref_price = self.instrument )
 
         # create lagged features
@@ -905,7 +908,7 @@ class trd(ond, tpqoa.tpqoa):
         if not TESTING:
             # if we are trading live (not TESTING) we need to normalize the data using
             # training dataset statistics
-            df = (df - self.mu) / self.std
+            df = (df - self.mu) / self.std # Todo: review application of this!
         # get feature columns
         all_cols = self.data.columns
         lagged_cols = []
@@ -1044,12 +1047,12 @@ if __name__ == '__main__':
     ####  wanted/needed configuration
     import configs.EUR_PLN_2 as cfginst
 
-    ######################## data
+    ######################## data  ########################
     odc = gdt(instrument_file=cfginst, conf_file=cfg.conf_file)
 
     print('OandaDataCollector object created for instrument {}'.format(cfginst.instrument))
-    NEW_DATA = True
-    REPORT_only = False
+    NEW_DATA = False
+    REPORT_only = True
     if not REPORT_only:
         if NEW_DATA:
             # actual data collection of most recent data
@@ -1078,11 +1081,11 @@ if __name__ == '__main__':
         odc.report()
 
 
-    ######################## train
+    ######################## train  ########################
     # Todo: do this selection better and not via string. This should reference via dict to the model
     model_id = "LSTM_dnn_all_states" # "LSTM_dnn" #"ffn" #""dnn1" # #
 
-    TRAIN = True
+    TRAIN = False
     EPOCHS = 50
     DROPOUT = 0.1
     if TRAIN:
@@ -1109,7 +1112,7 @@ if __name__ == '__main__':
         # Todo: would it better to make a parent class for training and inherit from that to create ad-hoc trainers
         # per each model in models?? seems more what I want...
 
-    ######################## trade
+    ######################## trade ########################
     # Todo: review, should not be necessary to pass the instrument here...
     instrument = cfginst.instrument
     # get or generate datafiles files and folders, if do not exist
@@ -1121,8 +1124,6 @@ if __name__ == '__main__':
     mu = params["mu"]
     std = params["std"]
 
-    # # load trained model
-    # model_id = "LSTM_dnn_all_states"  # "LSTM_dnn" #"ffn" #DNN_model
     # create trader object using instrument configuration details
     trader = trd(conf_file=cfg.conf_file,
                  instrument_file=cfginst,
@@ -1132,7 +1133,7 @@ if __name__ == '__main__':
 
     # either live trading or testing (back or fw testing)
     TRADING = 0
-    BCKTESTING, FWTESTING = (1, 0) if not TRADING else (0, 0)  # todo: do it better!!
+    BCKTESTING, FWTESTING = (0, 1) if not TRADING else (0, 0)  # todo: do it better!!
 
     if TRADING:
         trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data
@@ -1164,11 +1165,7 @@ if __name__ == '__main__':
         data_with_returns = pd.read_csv(namefiles_dict["raw_data_featured_resampled_file_name"],
                                     index_col="time", parse_dates=True, header=0)
 
-
-        # trader.prepare_data() ### necessary? maybe not if I take data prepared by getpreparedata.py
         if BCKTESTING:
-
-            trader.test(data_with_returns)
-
+            trader.test(data_with_returns, FW=False)
         else:  # fwtesting
-            trader.test(test_data) #Todo: must pass here data with returns, relative to test!
+            trader.test(data_with_returns) #Todo: must pass here data with returns, relative to test!
