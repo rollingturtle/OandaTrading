@@ -14,17 +14,22 @@ brl = "1min"  # bar lenght for resampling
 window = 10
 sma_int = 5
 half_spread = 0.00007
+
 targets = ["dir", "dir_sma1", "dir_sma2"]
-features = ["dir", "dir_sma1", "dir_sma2", "sma_diff",
-            "boll", "min", "max", "mom", "vol", "volume",
-            "o", "h", "l", "spread", instrument]
+# Todo:  "volume" could be included in the training but tick data does not contain it. Oanda
+# provides it every 5 second, Aleksander says. How could i get it? historical data every 5 secs?
+# Todo "dir_sma1", "dir_sma2" have been removed from the list of features, as they may
+# cause look-into-the-future bias: is that confirmed?
+features = ["dir", "sma_diff",
+            "boll", "min", "max", "mom", "vol",
+            "spread", instrument] #  # "volume", "o", "h", "l",
 
 
 granul="S5"
-days = 2
+days = 30
 days_inference = 3
-lags = 12
-split_pcs = (0.7, 0.10, 0.20)
+lags = 8
+split_pcs = (0.7, 0.20, 0.10)
 stop_trading = 500
 
 #trading thresholds for probability

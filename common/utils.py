@@ -12,7 +12,8 @@ import sys
 sys.path.append('../')
 
 
-def make_features(df, sma_int, window, ref_price = None, fwsma1 = 3, fwsma2 = 5, mom_win = 3, epsilon=10e-8):
+def make_features(df, sma_int, window, ref_price = None,
+                  fwsma1 = 3, fwsma2 = 5, mom_win = 3, epsilon=10e-8):
     ''' Creates features  and targets, using ref_price as input and half_spread
     (estimation of half cost for each position.
      sma_int and window are used to compute sma feature and bollinger related features
@@ -52,7 +53,7 @@ def make_features(df, sma_int, window, ref_price = None, fwsma1 = 3, fwsma2 = 5,
 
     df["min"] = df[ref_price].rolling(window).min() / df[ref_price] - 1
     df["max"] = df[ref_price].rolling(window).max() / df[ref_price] - 1
-    df["mom"] = df["returns"].rolling(mom_win).mean()  # todo make this 3 a param
+    df["mom"] = df["returns"].rolling(mom_win).mean()
     df["vol"] = df["returns"].rolling(window).std()
     df.dropna(inplace=True)
 
@@ -69,13 +70,14 @@ def make_features(df, sma_int, window, ref_price = None, fwsma1 = 3, fwsma2 = 5,
     df["fw_sma1"] = df[ref_price].rolling(window=indexer).mean() # , min_periods=1
     df["fw_sma1"].shift()
 
-    indexer = pd.api.indexers.FixedForwardWindowIndexer(window_size=fwsma2) # Todo: add param for this
+    indexer = pd.api.indexers.FixedForwardWindowIndexer(window_size=fwsma2)
     df["fw_sma2"] = df[ref_price].rolling(window=indexer).mean() # , min_periods=1
     df["fw_sma2"].shift()
     df.dropna(inplace=True)
 
     df["dir_sma1"] = np.where(df["fw_sma1"] > df[ref_price], 1, 0)
     df["dir_sma2"] = np.where(df["fw_sma2"] > df[ref_price], 1, 0)
+    df.drop(columns=["fw_sma1", "fw_sma2"], inplace=True)
     # df["profit_over_spread"] = np.where(df["returns"] > np.log(1 + half_spread), 1, 0)  # profit over spread
     # df["loss_over_spread"] = np.where(df["returns"] < np.log(1 - half_spread), 1, 0)  # loss under spread
     # Todo: consider a label based on whether or not the rolling mean of the log returns

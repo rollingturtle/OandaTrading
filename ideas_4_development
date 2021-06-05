@@ -24,9 +24,18 @@ Averaging log returns should yield an entity that is smoother and possibly easie
 - review dimensionality and balance of feature values, review features
 - Add more features on make_features utility, not only from close price. Now get_most_recent obtains
 info for bid and ask prices, and also volume can be informative
+- make possible to build new feature or re-built 3 datasets from raw data without always downloading
+from Oanda. Risk to be banned...
+- collect epochs and dropout params in better place
+- data: make getpreparedata able to work on raw data saved on disk.
+it should be possible to add new features, resample, generate new train,eval,test datasets
+in order to do that, I must save the index timedata to csv and load it correclty at a later time
+so I can resample it taking into consideration the timeindex
+
 
 Todo (Backlog):
-
+- get ready to move on colab or on gpu intel
+-trainer: add callback to save model at best validation accuracy
 
 - get bid and ask for historical and do better backtesting/fwtesting with better trading cost estimation
 maybe with the assumption that spread does not change much
@@ -46,7 +55,6 @@ In general, include spread in strategy, or simply make sure trading happens in b
     Here the open point of how to dowload live data for multiple instruments
     v20 supports it but tpqoa apparently not. Either I do my multithreading or I call v20 directly
 
--trainer: add callback to save model at best validation accuracy
 
 - consider training on a joint data from a "connected" group of instruments, so to increase
 the correlation that a single instrument has with all the others.
@@ -70,12 +78,6 @@ wrong.... and zero out the counter of decay any time the position is changed...
 - review why ticks are so async... what is the origin of the asynchronicity?
 
 - add more tasks to DNN, add loss function components and optimize the overall loss
-
-- data: make getpreparedata able to work on raw data saved on disk.
-it should be possible to add new features, resample, generate new train,eval,test datasets
-in order to do that, I must save the index timedata to csv and load it correclty at a later time
-so I can resample it taking into consideration the timeindex
-
 
 - implement architecture based on autoencoding a 2d input, initially fixed to white sheet (all 0).
 The autoencoder concatenates a representation of the input at time t_(-n) and generate an output

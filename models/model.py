@@ -118,11 +118,13 @@ def LSTM_dnn(dropout=0.0, inputs=None):
 
 def LSTM_dnn_all_states(dropout=0.0, inputs=None):
     inputs = keras.layers.Input(shape=(inputs.shape[1],inputs.shape[2]))
-    lstm_out = keras.layers.LSTM(128,dropout=dropout,
+    lstm_out = keras.layers.LSTM(32,dropout=dropout,
                                  return_sequences=True)(inputs) # Todo: make dimension of LSTM a param
     lstm_out_flatten = keras.layers.Flatten()(lstm_out)
     #lstm_out_flatten = keras.layers.AveragePooling1D(pool_size=inputs.shape[1])(lstm_out)
-    outputs = keras.layers.Dense(1, activation="sigmoid")(lstm_out_flatten)
+
+    x = Dropout(dropout, seed=100)(lstm_out_flatten)
+    outputs = keras.layers.Dense(1, activation="sigmoid")(x)
     model = keras.Model(inputs=inputs, outputs=outputs)
     model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
     model.summary()

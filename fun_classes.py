@@ -103,12 +103,6 @@ class gdt(ond):
         # tpqoa object to download historical data
         self.api_oanda = tpqoa.tpqoa(conf_file)
 
-        self.datalist = {"raw_data"                   : self.raw_data,
-                         "raw_data_featured_resampled": self.raw_data_featured_resampled,
-                         "train_ds_std"               : self.train_ds_std,
-                         "validation_ds_std"          : self.validation_ds_std,
-                         "test_ds_std"                : self.test_ds_std}
-
         gdt.check_create_path(self.namefiles_dict)
         return
 
@@ -126,14 +120,18 @@ class gdt(ond):
         return
 
     @classmethod
-    def _load_data_from_file(cls, namefiles_dict):
+    def _load_data_from_file(cls, namefiles_dict, raw_only=True):
         '''load raw data and process data from file'''
 
         # raw data
         raw_data = pd.read_csv(
             namefiles_dict["raw_data_file_name"], index_col="time", parse_dates=True, header=0)
         raw_data_featured_resampled = pd.read_csv(
-            namefiles_dict["raw_data_featured_resampled_file_name"], index_col="time", parse_dates=True, header=0)
+            namefiles_dict["raw_data_featured_resampled_file_name"],
+                             index_col="time", parse_dates=True, header=0)
+
+        if raw_only:
+            return
 
         # loading 3 datasets, standardized, which contains also the columns for targets
         train_ds_std = \
@@ -149,21 +147,29 @@ class gdt(ond):
         return raw_data, raw_data_featured_resampled, train_ds_std, validation_ds_std, \
                     test_ds_std, params
 
-    def load_data_from_file(self):
+    def load_data_from_file(self, raw_only=False):
         self.raw_data, \
         self.raw_data_featured_resampled,\
         self.train_ds_std, \
         self.validation_ds_std,\
         self.test_ds_std,\
-        self.params = gdt._load_data_from_file(self.namefiles_dict)
+        self.params = gdt._load_data_from_file(self.namefiles_dict, raw_only=False)
         return
 
     def report(self):
         '''provides insights on data memorized in the odc object'''
-        for k, df in self.datalist.items():
+        # Todo: check this, as it might make temporary copies of the data... useless
+        datalist = {"raw_data"                   : self.raw_data,
+                         "raw_data_featured_resampled": self.raw_data_featured_resampled,
+                         "train_ds_std"               : self.train_ds_std,
+                         "validation_ds_std"          : self.validation_ds_std,
+                         "test_ds_std"                : self.test_ds_std}
+
+        for k, df in datalist.items():
             if df is not None:
                 print("\nreport: Display info for dataframe {}".format(k))
-                df.info()
+                #df.info()
+                df.describe()
                 print("\n")
             else:
                 print("\nreport: Dataframe {} is None".format(k))
@@ -275,7 +281,7 @@ class gdt(ond):
         self.raw_data_featured = u.make_features(df, sma_int, window, ref_price=ref_price )
 
         logging.info("make_features: created new features and added to self.raw_data_featured")
-        print("make_features: self.raw_data_featured.columns ", self.raw_data_featured.columns)
+        #print("make_features: self.raw_data_featured.columns ", self.raw_data_featured.columns)
 
         assert (not self.raw_data_featured.isnull().values.any()), \
             "make_features: 1-NANs in self.raw_data_featured"
@@ -304,7 +310,7 @@ class gdt(ond):
         Resample data already obtained to the frequency defined by brl
         :param brl: default 1min
         '''
-        print("SEQUENCE: resample_data")
+        #print("SEQUENCE: resample_data")
         bar_length = pd.to_timedelta(brl)
         # resampling data at the desired bar length,
         # holding the last value of the bar period (.last())
@@ -354,7 +360,7 @@ class gdt(ond):
         self.train_targets = df[target_cols].iloc[:train_split].copy()
         self.validation_targets = df[target_cols].iloc[train_split:val_split].copy()
         self.test_targets = df[target_cols].iloc[val_split:].copy()
-        print("make_3_datasets: self.train_ds.info() ", self.train_ds.info())
+        #print("make_3_datasets: self.train_ds.info() ", self.train_ds.info())
         return
 
     def standardize(self):
@@ -371,7 +377,7 @@ class gdt(ond):
         self.validation_ds_std = (self.validation_ds - mu) / std
         self.test_ds_std = (self.test_ds - mu) / std
 
-        print("standardize: self.train_ds_std.info() ", self.train_ds_std.info())
+        #print("standardize: self.train_ds_std.info() ", self.train_ds_std.info())
         assert (not self.train_ds_std.isnull().values.any()), "standardize: NANs in Training Data"
         return
 
@@ -472,28 +478,28 @@ class trn(ond):
                     self.lagged_cols_reordered.append(r)
 
         print("load_train_data: reordered features are:", self.lagged_cols_reordered)
-        print("load_train_data: Lagged columns which are the input to the model:")
-        print(self.lagged_cols)
+        # print("load_train_data: Lagged columns which are the input to the model:")
+        # print(self.lagged_cols)
         print("load_train_data: how many Lagged columns:")
         print(len(self.lagged_cols))
-        print("self.train_data.head()\n",self.train_data.head())
+        # print("self.train_data.head()\n",self.train_data.head())
         assert (not self.train_data[self.lagged_cols].isnull().values.any()), \
             "NANs in Training Data"
         assert (not self.train_targets["dir"].isnull().values.any()), \
             "NANs in targets"
         return # train and test data loaded. Validation carved out by Keras from training data
 
-    def set_model(self):
+    def set_model(self, dropout=None):
         if self.model_id == "dnn1": # Todo: do this using the dictionary of models in model.py
-            self.model = m.dnn1(dropout = True,
+            self.model = m.dnn1(dropout = True, # dropout TODO: harmonize use of dropout here
                               rate=0.1,
                               input_dim = len(self.lagged_cols))
         elif self.model_id == "LSTM_dnn":  #Todo: review if makes sense to inherit for each model...
-            self.model = m.LSTM_dnn(dropout = 0.2,
+            self.model = m.LSTM_dnn(dropout = dropout,
                                     inputs = np.zeros((1, self.instrument_file .lags,
                                                        len(self.instrument_file .features))))
         elif self.model_id == "LSTM_dnn_all_states":  #Todo: review if makes sense to inherit for each model...
-            self.model = m.LSTM_dnn_all_states(dropout = 0.2,
+            self.model = m.LSTM_dnn_all_states(dropout = dropout,
                                     inputs = np.zeros((1, self.instrument_file .lags,
                                                        len(self.instrument_file .features))))
         elif self.model_id == "ffn":
@@ -884,7 +890,7 @@ class trd(ond, tpqoa.tpqoa):
         df = u.make_features(df,
                             self.sma_int,
                             self.window,
-                            self.half_spread,
+                            self.half_spread, # Todo review how I call this!!
                             ref_price = self.instrument )
 
         # create lagged features
@@ -1038,38 +1044,47 @@ if __name__ == '__main__':
     ####  wanted/needed configuration
     import configs.EUR_PLN_2 as cfginst
 
+    ######################## data
     odc = gdt(instrument_file=cfginst, conf_file=cfg.conf_file)
 
     print('OandaDataCollector object created for instrument {}'.format(cfginst.instrument))
-    NEW_DATA = False
-    if NEW_DATA:
-        # actual data collection of most recent data
-        print('OandaDataCollector data collection starts...')
-        odc.get_most_recent(granul=cfginst.granul, days = cfginst.days)
+    NEW_DATA = True
+    REPORT_only = False
+    if not REPORT_only:
+        if NEW_DATA:
+            # actual data collection of most recent data
+            print('OandaDataCollector data collection starts...')
+            odc.get_most_recent(granul=cfginst.granul, days = cfginst.days)
+            print("All row data downloaded from Oanda for instrument {}".format(cfginst.instrument))
+            print(odc.raw_data.info(), end="\n  ******** \n")
+        else:
+            # reloading raw data already dowloaded in precedence and using this to
+            # create features
+            # useful when rebuilding new features and datastes but no need to download data from Oanda
+            print('OandaDataCollector is loading from disk only RAW data: DATASETS are being re-built...')
+            odc.load_data_from_file(raw_only=True)
+
         odc.make_features()
         odc.make_lagged_features(lags=cfginst.lags)
         odc.resample_data(brl = cfginst.brl)
+
         odc.make_3_datasets()
         odc.standardize()
         odc.save_to_file()
 
-        print("All row data downloaded from Oanda for instrument {}".format(cfginst.instrument))
-        print(odc.raw_data.info(),  end="\n  ******** \n")
-        print("Re-sampled data for bar length {} from Oanda for instrument {}".format(
-                                                                cfginst.brl, cfginst.instrument))
-        print(odc.raw_data_featured_resampled.info(),  end="\n  ******** \n")
-    else:
-        print('OandaDataCollector data is loading from disk...')
+    else: # Just report on data available
+        print('OandaDataCollector all data (RAW and DATASETS) is loading from disk...')
         odc.load_data_from_file()
         odc.report()
-        # odc.make_features()
-        # odc.make_lagged_features()
-        # odc.report()
 
+
+    ######################## train
     # Todo: do this selection better and not via string. This should reference via dict to the model
-    model_id = "LSTM_dnn_all_states"# "LSTM_dnn" #"ffn" #""dnn1"
+    model_id = "LSTM_dnn_all_states" # "LSTM_dnn" #"ffn" #""dnn1" # #
 
-    TRAIN = False
+    TRAIN = True
+    EPOCHS = 50
+    DROPOUT = 0.1
     if TRAIN:
         model_trainer = trn(instrument_file=cfginst,
                             conf_file=cfg.conf_file,
@@ -1077,10 +1092,10 @@ if __name__ == '__main__':
 
         logging.info("Loading data and creating the NN model...")
         model_trainer.load_train_data()
-        model_trainer.set_model()
+        model_trainer.set_model(dropout=DROPOUT)
 
         logging.info("Training the NN model...")
-        model_trainer.train_model(epochs=50)
+        model_trainer.train_model(epochs=EPOCHS)
 
         logging.info("Evaluating the NN model...")
         model_trainer.evaluate_model()
@@ -1094,6 +1109,7 @@ if __name__ == '__main__':
         # Todo: would it better to make a parent class for training and inherit from that to create ad-hoc trainers
         # per each model in models?? seems more what I want...
 
+    ######################## trade
     # Todo: review, should not be necessary to pass the instrument here...
     instrument = cfginst.instrument
     # get or generate datafiles files and folders, if do not exist
@@ -1105,8 +1121,8 @@ if __name__ == '__main__':
     mu = params["mu"]
     std = params["std"]
 
-    # load trained model
-    model_id = "LSTM_dnn_all_states"  # "LSTM_dnn" #"ffn" #DNN_model
+    # # load trained model
+    # model_id = "LSTM_dnn_all_states"  # "LSTM_dnn" #"ffn" #DNN_model
     # create trader object using instrument configuration details
     trader = trd(conf_file=cfg.conf_file,
                  instrument_file=cfginst,
@@ -1155,4 +1171,4 @@ if __name__ == '__main__':
             trader.test(data_with_returns)
 
         else:  # fwtesting
-            trader.test(test_data)
+            trader.test(test_data) #Todo: must pass here data with returns, relative to test!
