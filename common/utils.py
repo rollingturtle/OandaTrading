@@ -13,7 +13,8 @@ sys.path.append('../')
 
 
 def make_features(df, sma_int, window, ref_price = None,
-                  fwsma1 = 3, fwsma2 = 5, mom_win = 3, epsilon=10e-8):
+                  fwsma1 = 3, fwsma2 = 5, mom_win = 3, epsilon=10e-8,
+                  live_trading=False):
     ''' Creates features  and targets, using ref_price and spread data as input
      sma_int and window are used to compute sma feature and bollinger related features
         '''
@@ -40,28 +41,29 @@ def make_features(df, sma_int, window, ref_price = None,
     df["boll"] = df["boll1"] /(epsilon +  df["boll_std"])
     df.drop(columns=["boll_std","boll1"], inplace=True)
 
-
     half_spread = 0.5 * np.array(df["spread"])
-    # make targets
+    # make targets. NO shifts here, as we will generate n lags (t-1, .., t-n) for each instant t
+    # Then, legs will be the inputs to the model and the targets at current time t will be the labels/sought values
     # target: identify market direction
     df["dir"] = np.where(df["returns"] > 0, 1, 0)
 
-    indexer = pd.api.indexers.FixedForwardWindowIndexer(window_size=fwsma1)
-    df["fw_sma1"] = df[ref_price].rolling(window=indexer).mean() # , min_periods=1
-    df["fw_sma1"].shift()
+    if not live_trading: # during trading I do not want to delete the most recent item
+        indexer = pd.api.indexers.FixedForwardWindowIndexer(window_size=fwsma1)
+        df["fw_sma1"] = df[ref_price].rolling(window=indexer).mean() # , min_periods=1
+        df["fw_sma1"].shift(-1) # want lag1 to be the first element of the fw sma to predict
 
-    indexer = pd.api.indexers.FixedForwardWindowIndexer(window_size=fwsma2)
-    df["fw_sma2"] = df[ref_price].rolling(window=indexer).mean() # , min_periods=1
-    df["fw_sma2"].shift()
-    df.dropna(inplace=True)
+        indexer = pd.api.indexers.FixedForwardWindowIndexer(window_size=fwsma2)
+        df["fw_sma2"] = df[ref_price].rolling(window=indexer).mean() # , min_periods=1
+        df["fw_sma2"].shift(-1)
+        df.dropna(inplace=True)
 
-    df["dir_sma1"] = np.where(df["fw_sma1"] > df[ref_price], 1, 0)
-    df["dir_sma2"] = np.where(df["fw_sma2"] > df[ref_price], 1, 0)
-    df.drop(columns=["fw_sma1", "fw_sma2"], inplace=True)
-    # df["profit_over_spread"] = np.where(df["returns"] > np.log(1 + half_spread), 1, 0)  # profit over spread
-    # df["loss_over_spread"] = np.where(df["returns"] < np.log(1 - half_spread), 1, 0)  # loss under spread
-    # Todo: consider a label based on whether or not the rolling mean of the log returns
-    # in the next steps is positive or negative
+        df["dir_sma1"] = np.where(df["fw_sma1"] > df[ref_price], 1, 0)
+        df["dir_sma2"] = np.where(df["fw_sma2"] > df[ref_price], 1, 0)
+        df.drop(columns=["fw_sma1", "fw_sma2"], inplace=True)
+        # df["profit_over_spread"] = np.where(df["returns"] > np.log(1 + half_spread), 1, 0)  # profit over spread
+        # df["loss_over_spread"] = np.where(df["returns"] < np.log(1 - half_spread), 1, 0)  # loss under spread
+        # Todo: consider a label based on whether or not the rolling mean of the log returns
+        # in the next steps is positive or negative
 
     return df
 
