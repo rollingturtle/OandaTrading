@@ -718,39 +718,39 @@ class trd(ond, tpqoa.tpqoa):
             thr_low=self.l_prob_th,
             live_or_test="test")
 
-        # calculate Strategy Returns: I need access to returns here!!!
-        # but likely the returns I have access here are standardized..
-        # Todo: review how to grant access to returns here, and see if access to standardized is doable
-        test_outs["strategy_gross"] = test_outs["position"] * \
-                                      (test_data["returns"]) # * self.std["returns"]
-                                                        # + self.mu["returns"]) #de-standardizing
+        # calculate Strategy Returns
+        test_outs["strategy_gross"] = test_outs["position"] * (test_data["returns"])
+
         # determine when a trade takes place
         test_outs["trades"] = test_outs["position"].diff().fillna(0).abs()
+
         # subtract transaction costs from return when trade takes place
         test_outs['strategy'] = test_outs["strategy_gross"] - test_outs["trades"] * test_data["spread"]/2
+
         # calculate cumulative returns for strategy & buy and hold
-        test_outs["creturns"] = (data["returns"]).cumsum().apply(np.exp) # * self.std["returns"]
-                                 #+ self.mu["returns"])
+        test_outs["creturns"] = (data["returns"]).cumsum().apply(np.exp)
         test_outs["cstrategy"] = test_outs['strategy'].cumsum().apply(np.exp)
         test_outs["cstrategy_gross"] = test_outs['strategy_gross'].cumsum().apply(np.exp)
         results = test_outs
 
         # absolute performance of the strategy
         perf = results["cstrategy"].iloc[-1]
+
         # out-/underperformance of strategy
         outperf = perf - results["creturns"].iloc[-1]
         print("outperf is ", outperf)
 
         # plot results
-        # todo: review why figures are not shown as expected
         print("plotting cumulative results of buy&hold and strategy")
-        title = "{} {} | Avg Transaction Cost = {}".format(self.instrument, test_type, test_data["spread"].mean())
+        title = "{} {} | Avg Transaction Cost = {}".format(
+            self.instrument, test_type, test_data["spread"].mean())
         results[["cstrategy",  "creturns", "cstrategy_gross"]].\
             plot(title=title, figsize=(12, 8))
         plt.show()
 
         #plt.figure(figsize=(12, 8))
         plt.title("{} {} | positions".format(self.instrument, test_type))
+
         #plt.plot(test_outs["trades"])
         plt.plot(test_outs["position"])
         plt.xlabel("time")
@@ -781,7 +781,7 @@ class trd(ond, tpqoa.tpqoa):
             print(100 * "-" + "\n")
         return
 
-    def get_most_recent(self, granul="S5", days = 2): #S5
+    def get_most_recent(self, granul="S5", days = 2):
         '''
         Get the most recent data for the instrument for which the object was created
         :param granul: base frequency for raw data being downloaded
@@ -880,7 +880,7 @@ class trd(ond, tpqoa.tpqoa):
         return
 
     def resample_and_join(self):
-        self.raw_data = self.hist_data.append(
+        self.raw_data = self.hist_data.append( # todo: why hist_data is not updated?
                             self.tick_data.resample(self.bar_length,
                                     label="right").last().ffill().iloc[:-1])
         return
@@ -890,13 +890,14 @@ class trd(ond, tpqoa.tpqoa):
 
         # Todo: make sure the params for features match the feature params used to generate training!!
         # create base features
-        df = self.raw_data.reset_index(drop=True, inplace=False)
+        df = self.raw_data.reset_index(drop=True, inplace=False)# Todo: why is this here???
         df = u.make_features(df,
                             self.sma_int,
                             self.window,
                             ref_price = self.instrument )
 
-        # create lagged features
+        # create lagged features: this is where our tick data becomes "lag_1" in the input to the model...
+        # Todo: make sure of it!
         df = u.make_lagged_features(df, self.features, self.lags)
         self.data = df.copy()
 
@@ -958,6 +959,9 @@ class trd(ond, tpqoa.tpqoa):
         self.tick_data = self.tick_data.append(
                             pd.concat([ask_df, bid_df], axis=1, join='inner'))
         print("self.tick_data.head()\n", self.tick_data.head())
+        # Todo: review how this tick data grows: I should prepare tick data to later extend hist_data
+        # which will be then used for making feature, and lagged features..... review the whole
+        # data generation process!!
 
         self.resample_and_join()
 
@@ -1140,6 +1144,7 @@ if __name__ == '__main__':
         logging.info("main: most recent historical data obtained and resampled" +
                      "now starting streaming data and trading...")
         trader.stream_data(cfginst.instrument, stop=cfginst.stop_trading)  # streaming & trading here!!!!
+        # Todo: just call onsuccess here and step by step follow howdataframes are populated...!
 
         if trader.position != 0:
             print("Closing position as we are ending trading!")

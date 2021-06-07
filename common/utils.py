@@ -14,34 +14,14 @@ sys.path.append('../')
 
 def make_features(df, sma_int, window, ref_price = None,
                   fwsma1 = 3, fwsma2 = 5, mom_win = 3, epsilon=10e-8):
-    ''' Creates features  and targets, using ref_price as input and half_spread
-    (estimation of half cost for each position.
+    ''' Creates features  and targets, using ref_price and spread data as input
      sma_int and window are used to compute sma feature and bollinger related features
-
-     Add some features out of the instrument raw data.
-        Any technical indicator can be added as feature
-        pip = 0.0001 fourth price decimal
-        spread = 1.5
-        spread in currency units = 1.5 * 0.0001
-
-        e.g. ASK price > BID price.
-        ASK - BID = Spread
-        Spread can be expressed in PIPS
-        PIP = (0.0001)^-1 * (ASK - BID) in the reference currency (the one we use to pay what we buy)
-        e.g.:for the amount of 1$, means you pay 1.00015$ = 1 *(1 + 0,00015)
-
-        Here we use estimate proportional transaction cost as 0.007%
-
-         lret(t) = log( price(t) / price(t-1))
-
-        Assume positions like:
-        price(t) > price(t-1) *(1 + 0,00007)  BUY (go long) ==> lret(t) > lg(1 + 0,00007)  go long
-        price(t) < price(t-1) * (1 - 0,,0007) SELL (go short)==> lret(t) < lg(1 - 0,00007) go short
         '''
 
-    # Todo: now df contains o,l,h, volume and spread data along with reference price
-    # Todo: add then new features AND above all, new tasks like:
-    # Todo: predict the sma direction computed like [now, now+1, ... now+K]
+    # Todo: should i differentiate between features for learining and inference time?
+    # training: i use t to create targets and lags to generate input data
+    # inference testing: as above
+    # inference live trading: t is THE MOST recent input
     #
     # log returns: fundamental quantity
     df["returns"] = np.log(df[ref_price] / df[ref_price].shift())
