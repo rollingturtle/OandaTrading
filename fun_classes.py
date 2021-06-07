@@ -885,6 +885,7 @@ class trd(ond, tpqoa.tpqoa):
                                         .last()\
                                         .ffill()\
                                         .iloc[:-1])
+
         return
 
     def prepare_data(self):
@@ -958,7 +959,7 @@ class trd(ond, tpqoa.tpqoa):
         #                       index=[pd.to_datetime(time)])
         ref_price = pd.DataFrame({self.instrument: (ask + bid)/2  },
                           index=[pd.to_datetime(time)])
-        spread = pd.DataFrame({"spread": ask - bid},
+        spread = pd.DataFrame({"spread": (ask - bid)},
                               index=[pd.to_datetime(time)])
 
         # from bid and ask price I need to recreate the data useful to extend the  used for training
@@ -970,15 +971,12 @@ class trd(ond, tpqoa.tpqoa):
         # so I need to create average instrument price (named "instrument") and spread
         # (named "spread") columns in a dataframe
 
-        # visualize the data added to the tick_data
-        print("on_success: adding to tick_data: {} []".format(ref_price, spread))
         self.tick_data = self.tick_data.append(
                             pd.concat([ref_price, spread], axis=1, join='inner'))
-        print("self.tick_data.head()\n", self.tick_data.head())
-        # Todo: review how this tick data grows: I should prepare tick data to later extend hist_data
-        # which will be then used for making feature, and lagged features..... review the whole
-        # data generation process!!
+        # visualize the data added to the tick_data
+        print("ONSUCCESS: self.tick_data.tail()\n", self.tick_data.tail())
 
+        # resample and join data
         self.resample_and_join()
 
         # only if new bar has been added:
