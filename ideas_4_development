@@ -31,13 +31,16 @@ from Oanda. Risk to be banned...
 it should be possible to add new features, resample, generate new train,eval,test datasets
 in order to do that, I must save the index timedata to csv and load it correclty at a later time
 so I can resample it taking into consideration the timeindex
-
-
-Todo (Backlog):
 - check the data quality and the dfferences in feature generation at training time vs inference time
 review how this tick data grows: I should prepare tick data to later extend hist_data
         # which will be then used for making feature, and lagged features..... review the whole
         # data generation process!!
+
+Todo (Backlog):
+
+- whis is testing showing different initial value?
+
+- make get_recet_data a function from parent class along with all common parts
 
 - get bid and ask for historical and do better backtesting/fwtesting with better trading cost estimation
 maybe with the assumption that spread does not change much

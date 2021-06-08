@@ -693,23 +693,24 @@ class trd(ond, tpqoa.tpqoa):
         '''
         test the (model,strategy) pair on data, and compare the buy&hold with
         the chosen strategy. Ideally estimation of trading costs should be included
+
+        :param data: data used to obtain data for test model performance
+        :param FW: kind of testing - BackWard or ForWard
+        :return: absolute and delta value of cumulative pnl
         '''
 
         test_outs = pd.DataFrame()
         self.data = data.copy()
         (train_split, val_split) = u.get_split_points(self.data, cfginst.split_pcs)
-        if not FW:
-            self.data = self.data.iloc[:train_split]
-            test_data = self.data
-            test_type = "BW_TESTING"
-        else:
+
+        if FW:
             self.data = self.data.iloc[train_split:] #val_split:] using validation data as well to test..  review!
             test_data = self.data
             test_type = "FW_TESTING"
-
-        # train_ds = df[input_cols].iloc[:train_split].copy()
-        # validation_ds = df[input_cols].iloc[train_split:val_split].copy()
-        # test_ds = df[input_cols].iloc[val_split:].copy()
+        else:
+            self.data = self.data.iloc[:train_split]
+            test_data = self.data
+            test_type = "BW_TESTING"
 
         # Predictions
         test_outs["probs"] = self.predict(TESTING=True)
@@ -728,12 +729,19 @@ class trd(ond, tpqoa.tpqoa):
         test_outs["trades"] = test_outs["position"].diff().fillna(0).abs()
 
         # subtract transaction costs from return when trade takes place
-        test_outs['strategy'] = test_outs["strategy_gross"] - test_outs["trades"] * test_data["spread"]/2
+        # returns are log returns, so I need to take the exp,
+        # test_outs['strategy'] = (test_outs["strategy_gross"].apply(np.exp) -
+        #                         test_outs["trades"] * test_data["spread"]/2).apply(np.log)
+
+        test_outs['trading_costs'] = test_outs["trades"] * test_data["spread"]/2
+
 
         # calculate cumulative returns for strategy & buy and hold
         test_outs["creturns"] = (data["returns"]).cumsum().apply(np.exp)
-        test_outs["cstrategy"] = test_outs['strategy'].cumsum().apply(np.exp)
+        # test_outs["cstrategy"] = test_outs['strategy'].cumsum().apply(np.exp)
         test_outs["cstrategy_gross"] = test_outs['strategy_gross'].cumsum().apply(np.exp)
+        test_outs["cstrategy"] = test_outs["cstrategy_gross"] - test_outs['trading_costs'].cumsum()
+
         results = test_outs
 
         # absolute performance of the strategy
@@ -745,16 +753,14 @@ class trd(ond, tpqoa.tpqoa):
 
         # plot results
         print("plotting cumulative results of buy&hold and strategy")
+
         title = "{} {} | Avg Transaction Cost = {}".format(
             self.instrument, test_type, test_data["spread"].mean())
         results[["cstrategy",  "creturns", "cstrategy_gross"]].\
             plot(title=title, figsize=(12, 8))
         plt.show()
 
-        #plt.figure(figsize=(12, 8))
         plt.title("{} {} | positions".format(self.instrument, test_type))
-
-        #plt.plot(test_outs["trades"])
         plt.plot(test_outs["position"])
         plt.xlabel("time")
         plt.ylabel("positions")
@@ -1150,8 +1156,8 @@ if __name__ == '__main__':
                  std=std)
 
     # either live trading or testing (back or fw testing)
-    TRADING = 1
-    BCKTESTING, FWTESTING = (0, 1) if not TRADING else (0, 0)  # todo: do it better!!
+    TRADING = 0
+    BCKTESTING, FWTESTING = (1, 0) if not TRADING else (0, 0)  # todo: do it better!!
 
 
     if TRADING:
@@ -1159,7 +1165,6 @@ if __name__ == '__main__':
         logging.info("main: most recent historical data obtained and resampled" +
                      "now starting streaming data and trading...")
         trader.stream_data(cfginst.instrument, stop=cfginst.stop_trading)  # streaming & trading here!!!!
-        # Todo: just call onsuccess here and step by step follow howdataframes are populated...!
 
         if trader.position != 0:
             print("Closing position as we are ending trading!")
