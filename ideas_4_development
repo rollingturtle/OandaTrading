@@ -38,17 +38,21 @@ review how this tick data grows: I should prepare tick data to later extend hist
 
 Todo (Backlog):
 
-- whis is testing showing different initial value?
+- make get_recent_data a function from parent class along with all common parts
 
-- make get_recet_data a function from parent class along with all common parts
-
-- get bid and ask for historical and do better backtesting/fwtesting with better trading cost estimation
-maybe with the assumption that spread does not change much
-In general, include spread in strategy, or simply make sure trading happens in busy hours when spread is low
+- model to leverage more tasks, and strategy that takes into account all the model outputs
 
 -  add confusion matrix generation in trainer (tf2.0 course ann mnist)
 
 - save models with callback based on eval accuracy
+
+- whis is testing showing different initial value?
+
+- train on seqlen of 50-70, but not on macbook!
+
+- get bid and ask for historical and do better backtesting/fwtesting with better trading cost estimation
+maybe with the assumption that spread does not change much
+In general, include spread in strategy, or simply make sure trading happens in busy hours when spread is low
 
 - strategies: consider exponential decay toward more permissive threshold for a taken position that is
 wrong.... and zero out the counter of decay any time the position is changed...

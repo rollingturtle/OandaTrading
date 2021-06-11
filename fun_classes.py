@@ -500,12 +500,16 @@ class trn(ond):
                               input_dim = len(self.lagged_cols))
         elif self.model_id == "LSTM_dnn":  #Todo: review if makes sense to inherit for each model...
             self.model = m.LSTM_dnn(dropout = dropout,
-                                    inputs = np.zeros((1, self.instrument_file .lags,
-                                                       len(self.instrument_file .features))))
+                                    inputs = np.zeros((1, self.instrument_file.lags,
+                                                       len(self.instrument_file.features))))
         elif self.model_id == "LSTM_dnn_all_states":  #Todo: review if makes sense to inherit for each model...
             self.model = m.LSTM_dnn_all_states(dropout = dropout,
-                                    inputs = np.zeros((1, self.instrument_file .lags,
-                                                       len(self.instrument_file .features))))
+                                    inputs = np.zeros((1, self.instrument_file.lags,
+                                                       len(self.instrument_file.features))))
+        elif self.model_id == "LSTM_dnn_all_states_mout":  #Todo: review if makes sense to inherit for each model...
+            self.model = m.LSTM_dnn_all_states_mout(dropout = dropout,
+                                    inputs = np.zeros((1, self.instrument_file.lags,
+                                                       len(self.instrument_file.features))))
         elif self.model_id == "ffn":
             self.model = m.ffn(self.train_data[self.lagged_cols],
                               rate=0.1)
@@ -520,12 +524,14 @@ class trn(ond):
         # plt.hist(self.model.layers[2].get_weights()[1])
         # plt.show()
         # plt.figure()
+        print("trn.set_model: model set to ", self.model_id)
         return
 
     def train_model(self, epochs=30):  # Todo: explode this using gradient_tape
         '''
         It trains the specified model on the training data already obtained
         '''
+        print("train_model: using model ", self.model_id)
         if self.model_id == "ffn" or self.model_id == "ffn": #todo : do this better
 
             r = self.model.fit(x=self.train_data[self.lagged_cols],
@@ -561,17 +567,45 @@ class trn(ond):
                       batch_size=64,  # Todo make BS a param
                       class_weight = m.cw(self.train_targets))
 
+        elif self.model_id == "LSTM_dnn_all_states_mout":
+            # inputs: A 3D tensor with shape [batch, timesteps, feature].
+
+            numpy_train = trn._get_3d_tensor(
+                self.train_data[self.lagged_cols_reordered].to_numpy(),
+                    self.instrument_file)
+            numpy_val = trn._get_3d_tensor(
+                self.validation_data[self.lagged_cols_reordered].to_numpy(),
+                    self.instrument_file)
+
+            print("numpy_train.shape ",numpy_train.shape)
+            numpy_train_targets = self.train_targets[["dir", "dir_sma1", "dir_sma2"]].to_numpy()
+            numpy_val_targets = self.validation_targets[["dir", "dir_sma1", "dir_sma2"]].to_numpy()
+
+            r = self.model.fit(x = numpy_train,
+                      y = [numpy_train_targets[:,0],numpy_train_targets[:,1],numpy_train_targets[:,2]],
+                      epochs = epochs,
+                      verbose = True,
+                      validation_data=(numpy_val,
+                            [numpy_val_targets[:, 0], numpy_val_targets[:, 1], numpy_val_targets[:, 2]]),
+                      shuffle = True,
+                      batch_size=64) #,  # Todo make BS a param
+                      #class_weight = m.cw_multi(self.train_targets))
+
         # get some visualization of the effect of learning (on weights, loss, acc)
         # plt.hist(self.model.layers[2].get_weights()[0])
         # plt.show()
         # plt.figure()
+        print("PLOTTING Train/Validation loss and accuracy")
         plt.plot(r.history['loss'], label="loss")
         plt.plot(r.history['val_loss'], label="val_loss")
         plt.legend()
         plt.show()
+
+
+        acc_str = "acc" if self.model_id != "LSTM_dnn_all_states_mout" else "out_acc"
         plt.figure()
-        plt.plot(r.history['acc'], label="acc")
-        plt.plot(r.history['val_acc'], label="val_acc")
+        plt.plot(r.history[acc_str], label=acc_str)
+        plt.plot(r.history['val_' + acc_str], label="val_" + acc_str)
         plt.legend()
         plt.show()
         plt.figure()
@@ -620,10 +654,34 @@ class trn(ond):
                 to_numpy(), cfginst)
             self.model.evaluate(numpy_test, self.test_targets["dir"].to_numpy(), verbose=True)
 
+        elif self.model_id == "LSTM_dnn_all_states_mout":
+            # inputs: A 3D tensor with shape [batch, timesteps, feature].
+
+            numpy_train_targets = self.train_targets[["dir", "dir_sma1", "dir_sma2"]].to_numpy()
+            numpy_val_targets = self.validation_targets[["dir", "dir_sma1", "dir_sma2"]].to_numpy()
+            numpy_test_targets = self.test_targets["dir", "dir_sma1", "dir_sma2"].to_numpy()
+
+            print("main: Evaluating the model on in-sample data (training data)")
+            numpy_eval = self._get_3d_tensor(self.train_data[self.lagged_cols_reordered]. \
+                                             to_numpy(), cfginst)
+            self.model.evaluate(numpy_eval,
+                                [numpy_train_targets[:,0],numpy_train_targets[:,1],numpy_train_targets[:,2]],
+                                verbose=True)
+
+            print("main: valuating the model on out-of-sample data (test data)")
+            numpy_test = self._get_3d_tensor(self.test_data[self.lagged_cols_reordered]. \
+                                             to_numpy(), cfginst)
+            self.model.evaluate(numpy_test,
+                                [numpy_test_targets[:, 0], numpy_test_targets[:, 1], numpy_test_targets[:, 2]],
+                                verbose=True)
+
+
+        #keras.metrics.confusion_matrix(self.test_targets["dir"], y_pred)
+
         return
 
     def make_predictions(self):
-        print("main: just testing predictions for later trading applications")
+        print("make_predictions: just testing predictions for later trading applications")
         if self.model_id == "ffn" or self.model_id == "ffn":  # todo : do this better
             pred = self.model.predict(self.train_data[self.lagged_cols], verbose=True)
         elif self.model_id == "LSTM_dnn" or \
@@ -632,6 +690,11 @@ class trn(ond):
                 to_numpy(), cfginst)
             pred = self.model.predict(numpy_train, verbose=True)
         print(pred)
+
+        print("make_predictions: confusion matrix on train data for market direction next time step")
+        if self.model_id == "LSTM_dnn_all_states_mout":
+            pred = pred[:,0]
+        print(keras.metrics.confusion_matrix(self.test_targets["dir"], pred))
         return
 
 
@@ -932,7 +995,9 @@ class trd(ond, tpqoa.tpqoa):
                     lagged_cols.append(col)
             df["proba"] = self.model.predict(df[lagged_cols])
 
-        elif self.model_id == "LSTM_dnn" or self.model_id == "LSTM_dnn_all_states":
+        elif self.model_id == "LSTM_dnn" \
+                or self.model_id == "LSTM_dnn_all_states"\
+                or self.model_id == "LSTM_dnn_all_states_mout":
             # reoder features
             for lag in range(1, self.lags + 1):
                 for feat in self.features:
@@ -942,10 +1007,15 @@ class trd(ond, tpqoa.tpqoa):
 
             numpy_train = self._get_3d_tensor(df[lagged_cols_reordered]. \
                 to_numpy())
-            df["proba"] = self.model.predict(numpy_train, verbose=True)
+            all_probs = self.model.predict(numpy_train, verbose=True) # all probs is a list!!
+            df["proba"] = all_probs if len(all_probs) <= 1 else all_probs[0]
+            #todo: review - taking only out in case of LSTM_dnn_all_states_mout
 
         self.data = df.copy()
         if TESTING:
+            # Todo Add here generation of confusion matrix:
+            #keras.metrics.confusion_matrix(y, y_hat)
+            # y_hat obtained from np.argmax of predicted probability out or just the class id (0/1 for binclass)?
             return df["proba"]
         else:
             return
@@ -1106,8 +1176,7 @@ if __name__ == '__main__':
 
 
     ######################## train  ########################
-    # Todo: do this selection better and not via string. This should reference via dict to the model
-    model_id = "LSTM_dnn_all_states" # "LSTM_dnn" #"ffn" #""dnn1" # #
+    model_id = "LSTM_dnn_all_states_mout" # "LSTM_dnn" #"ffn" #""dnn1" # #
 
     TRAIN = False
     EPOCHS = 50
@@ -1124,14 +1193,14 @@ if __name__ == '__main__':
         logging.info("Training the NN model...")
         model_trainer.train_model(epochs=EPOCHS)
 
+        logging.info("Saving the NN model...")
+        model_trainer.save_model()
+
         logging.info("Evaluating the NN model...")
         model_trainer.evaluate_model()
 
         logging.info("Predictions with the NN model...")
         model_trainer.make_predictions()
-
-        logging.info("Saving the NN model...")
-        model_trainer.save_model()
 
         # Todo: would it better to make a parent class for training and inherit from that to create ad-hoc trainers
         # per each model in models?? seems more what I want...

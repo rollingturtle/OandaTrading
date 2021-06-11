@@ -20,6 +20,20 @@ def cw(df):
     print("cw: using class 0 weight {}, class 1 weight {}".format(w0,w1))
     return {0: w0, 1: w1}
 
+def cw_multi(df):
+    c0, c1 = np.bincount(df["dir"])
+    w0 = (1 / c0) * (len(df)) / 2
+    w1 = (1 / c1) * (len(df)) / 2
+    print("cw: using class 0 weight {}, class 1 weight {}".format(w0,w1))
+    return {(0, 0, 0): w0,
+            (0, 0, 1): w0,
+            (0, 1, 0): w0,
+            (0, 1, 1): w0,
+            (1, 0, 0): w1,
+            (1, 0, 1): w1,
+            (1, 1, 0): w1,
+            (1, 1, 1): w1}
+
 optimizer = Adam(lr=0.0001)
 
 #Todo: make the list of available models in a pythonic way... this sucks
@@ -125,11 +139,45 @@ def LSTM_dnn_all_states(dropout=0.0, inputs=None):
 
     x = Dropout(dropout, seed=100)(lstm_out_flatten)
     outputs = keras.layers.Dense(1, activation="sigmoid")(x)
+
     model = keras.Model(inputs=inputs, outputs=outputs)
+
     model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
+
     model.summary()
+
     return model
 
+
+def LSTM_dnn_all_states_mout(dropout=0.0, inputs=None):
+
+    inputs = keras.layers.Input(shape=(inputs.shape[1],inputs.shape[2]))
+    lstm_out = keras.layers.LSTM(32,dropout=dropout,
+                                 return_sequences=True)(inputs) # Todo: make dimension of LSTM a param
+    lstm_out_flatten = keras.layers.Flatten()(lstm_out)
+    #lstm_out_flatten = keras.layers.AveragePooling1D(pool_size=inputs.shape[1])(lstm_out)
+
+    x = Dropout(dropout, seed=100)(lstm_out_flatten)
+    out = keras.layers.Dense(1, activation="sigmoid", name="out")(x)
+    outb = keras.layers.Dense(1, activation="sigmoid", name="outb")(x)
+    outc = keras.layers.Dense(1, activation="sigmoid", name="outc")(x)
+
+    model = Model(inputs=inputs, outputs=[out, outb, outc])
+
+    # define two dictionaries: one that specifies the loss method for
+    # each output of the network along with a second dictionary that
+    # specifies the weight per loss
+    losses = {
+        "out": "binary_crossentropy",
+        "outb": "binary_crossentropy",
+        "outc": "binary_crossentropy",
+    }
+    lossWeights = {"out": 1., "outb": 1.0, "outc": 1.0}
+
+    model.compile(loss=losses, loss_weights=lossWeights,
+                  optimizer=optimizer, metrics=['acc'])
+
+    return model
 
 def sequence_of_VAEs():
     pass
@@ -147,6 +195,7 @@ def recurrent_VAE_cell(inputs, previous_notes):
 available_models = {"dnn1": dnn1,
                     "LSTM_dnn": LSTM_dnn,
                     "LSTM_dnn_all_states": LSTM_dnn_all_states,
+                    "LSTM_dnn_all_states_mout": LSTM_dnn_all_states_mout,
                     "ffn": ffn }
 
 '''
