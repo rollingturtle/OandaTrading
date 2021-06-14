@@ -54,6 +54,38 @@ class ond: # Todo: should be abstract class?
 
         return
 
+    def _get_history(self, instrument = None,
+                                    start = None,
+                                    end = None,
+                                    granularity = None,
+                                    price = None,
+                                    localize = False):
+        '''
+        helper function used in multithreaded data collection
+        '''
+        print("Thread started with price ", price)
+        df =  self.api_oanda.get_history(
+                                    instrument,
+                                    start,
+                                    end,
+                                    granularity,
+                                    price,
+                                    localize).dropna() #.to_frame() #).c.dropna()...
+        if price == "A":
+            self.ask_df = df.copy()
+            print("Got ASK data ", self.ask_df.columns)
+        elif price =="B":
+            self.bid_df = df.copy()
+            print("Got BID data ", self.bid_df.columns)
+        else:
+            print("price not recognized!")
+
+        i = self.barrier.wait() #sync with other tasks
+        if i == 0:
+            # Only one thread needs to print this
+            print("passed the barrier")
+        return
+
 ################################ Get DaTa (gdt) class #########################################
 class gdt(ond):
     '''
@@ -176,40 +208,40 @@ class gdt(ond):
         print("\nreport: displaying information about training set statistics")
         print("report: params is {}".format(self.params))
         return
-
-
-    def _get_history(self, instrument = None,
-                                    start = None,
-                                    end = None,
-                                    granularity = None,
-                                    price = None,
-                                    localize = False):
-        '''
-        helper function used in multithreaded data collection
-        '''
-        print("Thread started with price ", price)
-        df =  self.api_oanda.get_history(
-                                    instrument,
-                                    start,
-                                    end,
-                                    granularity,
-                                    price,
-                                    localize).dropna() #.to_frame() #).c.dropna()...
-        if price == "A":
-            self.ask_df = df.copy()
-            print("Got ASK data ", self.ask_df.columns)
-        elif price =="B":
-            self.bid_df = df.copy()
-            print("Got BID data ", self.bid_df.columns)
-        else:
-            print("price not recognized!")
-
-        i = self.barrier.wait() #sync with other tasks
-        if i == 0:
-            # Only one thread needs to print this
-            print("passed the barrier")
-        return
-
+    #
+    #
+    # def _get_history(self, instrument = None,
+    #                                 start = None,
+    #                                 end = None,
+    #                                 granularity = None,
+    #                                 price = None,
+    #                                 localize = False):
+    #     '''
+    #     helper function used in multithreaded data collection
+    #     '''
+    #     print("Thread started with price ", price)
+    #     df =  self.api_oanda.get_history(
+    #                                 instrument,
+    #                                 start,
+    #                                 end,
+    #                                 granularity,
+    #                                 price,
+    #                                 localize).dropna() #.to_frame() #).c.dropna()...
+    #     if price == "A":
+    #         self.ask_df = df.copy()
+    #         print("Got ASK data ", self.ask_df.columns)
+    #     elif price =="B":
+    #         self.bid_df = df.copy()
+    #         print("Got BID data ", self.bid_df.columns)
+    #     else:
+    #         print("price not recognized!")
+    #
+    #     i = self.barrier.wait() #sync with other tasks
+    #     if i == 0:
+    #         # Only one thread needs to print this
+    #         print("passed the barrier")
+    #     return
+    #
 
     def get_most_recent(self, granul="S5", days = 1):
         '''
@@ -728,6 +760,9 @@ class trd(ond, tpqoa.tpqoa):
         self.raw_data = None
         self.data = None
         self.profits = []
+
+        self.barrier = None
+
         # dataframes to hold ask and bid historical prices
         self.ask_df = pd.DataFrame()
         self.bid_df = pd.DataFrame()
@@ -853,37 +888,36 @@ class trd(ond, tpqoa.tpqoa):
             print(100 * "-" + "\n")
         return
 
-    def _get_history(self, instrument = None,
-                                    start = None,
-                                    end = None,
-                                    granularity = None,
-                                    price = None,
-                                    localize = False):
-        '''
-        helper function used in multithreaded data collection
-        '''
-        print("Thread started with price ", price)
-        df =  self.get_history(
-                                    instrument,
-                                    start,
-                                    end,
-                                    granularity,
-                                    price,
-                                    localize).dropna() #.to_frame() #).c.dropna()...
-        if price == "A":
-            self.ask_df = df.copy()
-            print("Got ASK data ", self.ask_df.columns)
-        elif price =="B":
-            self.bid_df = df.copy()
-            print("Got BID data ", self.bid_df.columns)
-        else:
-            print("price not recognized!")
-
-        i = self.barrier.wait() #sync with other tasks
-        if i == 0:
-            # Only one thread needs to print this
-            print("passed the barrier")
-        return
+    # def _get_history(self, instrument = None,
+    #                                 start = None,
+    #                                 end = None,
+    #                                 granularity = None,
+    #                                 price = None,
+    #                                 localize = False):
+    #     '''
+    #     helper function used in multithreaded data collection
+    #     '''
+    #     print("Thread started with price ", price)
+    #     df =  self.get_history(instrument,
+    #                             start,
+    #                             end,
+    #                             granularity,
+    #                             price,
+    #                             localize).dropna() #.to_frame() #).c.dropna()...
+    #     if price == "A":
+    #         self.ask_df = df.copy()
+    #         print("Got ASK data ", self.ask_df.columns)
+    #     elif price =="B":
+    #         self.bid_df = df.copy()
+    #         print("Got BID data ", self.bid_df.columns)
+    #     else:
+    #         print("price not recognized!")
+    #
+    #     i = self.barrier.wait() #sync with other tasks
+    #     if i == 0:
+    #         # Only one thread needs to print this
+    #         print("passed the barrier")
+    #     return
 
 
     def get_most_recent(self, granul="S5", days = 1): # TODO: this is copy of gdt.get_most_recent: unify
@@ -910,7 +944,10 @@ class trd(ond, tpqoa.tpqoa):
         ask_thread.join()
         bid_thread.join()
 
-        # combine price information to derive the spread
+        # combine price information to derive the spread -
+        # Todo: time of trading may be relevant and data could be empty? no.. this is historycal data!
+        # Why is this returning and empty dataframe?
+        df.info()
         for p in "ohlc":
             print(p)
             df['sprd_{}'.format(p)] = self.ask_df['{}'.format(p)] - self.bid_df['{}'.format(p)]
@@ -929,11 +966,11 @@ class trd(ond, tpqoa.tpqoa):
         # dropping all temporary columns
         df.drop(columns=[ p for p in df.columns if "_" in p ], inplace=True)
 
-        df['c'] = (self.ask_df["c"] + self.ask_df['c'])/2
+        # todo: this differs from gdt class. Why??
+        # df['c'] = (self.ask_df["c"] + self.ask_df['c'])/2
         df.rename(columns={"c": self.instrument}, inplace=True)
 
-        print("\nhistory dataframe information:\n")
-        df.info()
+        print("\nhistory dataframe information:\n", df.info())
 
         logging.info("get_most_recent: resampling recent history to chosen bar length in line" +
                      " with the training data used to train the model")
@@ -1139,14 +1176,14 @@ if __name__ == '__main__':
     ####  IMPORTANT ####
     ####  change this import pointing to the
     ####  wanted/needed configuration
-    import configs.EUR_PLN_2 as cfginst
+    import configs.EUR_NOK_1 as cfginst
 
     ######################## data  ########################
     odc = gdt(instrument_file=cfginst, conf_file=cfg.conf_file)
 
     print('OandaDataCollector object created for instrument {}'.format(cfginst.instrument))
-    NEW_DATA = False
-    REPORT_only = True
+    NEW_DATA = True
+    REPORT_only = False
     if not REPORT_only:
         if NEW_DATA:
             # actual data collection of most recent data
@@ -1178,7 +1215,7 @@ if __name__ == '__main__':
     ######################## train  ########################
     model_id = "LSTM_dnn_all_states_mout" # "LSTM_dnn" #"ffn" #""dnn1" # #
 
-    TRAIN = False
+    TRAIN = True
     EPOCHS = 50
     DROPOUT = 0.1
     if TRAIN:
@@ -1225,7 +1262,7 @@ if __name__ == '__main__':
                  std=std)
 
     # either live trading or testing (back or fw testing)
-    TRADING = 0
+    TRADING = 1
     BCKTESTING, FWTESTING = (1, 0) if not TRADING else (0, 0)  # todo: do it better!!
 
 

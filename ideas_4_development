@@ -46,7 +46,7 @@ Todo (Backlog):
 
 - save models with callback based on eval accuracy
 
-- whis is testing showing different initial value?
+- why is testing showing different initial value?
 
 - train on seqlen of 50-70, but not on macbook!
 
