@@ -47,10 +47,15 @@ class ond: # Todo: should be abstract class?
         self.features = instrument_file.features
         self.lags = instrument_file.lags
 
+        self.raw_data = pd.DataFrame()
+
         self.namefiles_dict = {}
         self.namefiles_dict = u.creates_filenames_dict(
             self.instrument_file.instrument,
             self.namefiles_dict, cfg)
+
+        # tpqoa object to download historical data
+        self.api_oanda = tpqoa.tpqoa(conf_file)
 
         return
 
@@ -84,6 +89,59 @@ class ond: # Todo: should be abstract class?
         if i == 0:
             # Only one thread needs to print this
             print("passed the barrier")
+        return
+
+    def get_most_recent(self, granul="S5", days = 1):
+        '''
+        Get the most recent data for the instrument for which the object was created
+        :param granul: base frequency for raw data being downloaded
+        :param days: number of past days (from today) we are downloading data for
+        '''
+
+        # set start and end date for historical data retrieval
+        now = datetime.utcnow()
+        now = now - timedelta(microseconds = now.microsecond)
+        past = now - timedelta(days = days)
+
+        # get historical data up to now
+        logging.info("get_most_recent: getting historical data from Oanda... ")
+        self.barrier = threading.Barrier(2,timeout=20)
+        ask_thread = threading.Thread(target=self._get_history,
+                                  args=(self.instrument, past, now, granul, "A", False))
+        bid_thread = threading.Thread(target=self._get_history,
+                                  args=(self.instrument, past, now, granul,"B", False))
+        ask_thread.start()
+        bid_thread.start()
+        ask_thread.join()
+        bid_thread.join()
+
+        # combine price information to derive the spread
+        for p in "ohlc":
+            self.raw_data['sprd_{}'.format(p)] = self.ask_df['{}'.format(p)] - \
+                                                 self.bid_df['{}'.format(p)]
+            self.raw_data['ask_{}'.format(p)] = self.ask_df['{}'.format(p)]
+            self.raw_data['bid_{}'.format(p)] = self.bid_df['{}'.format(p)]
+        self.raw_data['volume'] = (self.ask_df["volume"] +  self.bid_df["volume"])/2
+
+        # averaging o,h,c,l values between ask and bid
+        for p in "ohlc":
+            self.raw_data[p] = (self.ask_df[p] + self.bid_df[p])/2
+
+        # averaging spread across o,h,l,c
+        col = self.raw_data.loc[:, ['sprd_{}'.format(p) for p in "ohlc"]]
+        self.raw_data["spread"] = col.mean(axis=1)
+
+        # dropping all temporary columns
+        self.raw_data.drop(columns=[ p for p in self.raw_data.columns if "_" in p ], inplace=True)
+
+        # renaming c as instrument as it will be used as reference price
+        self.raw_data.rename(columns={"c": self.instrument}, inplace=True)
+
+        print("get_most_recent: self.raw_data.info() ", self.raw_data.info())
+
+        # check for any missing data: TODO: is this useful here??
+        assert (not self.raw_data.isnull().values.any()), \
+            "get_most_recent: 1-NANs in self.raw_data_featured" #
         return
 
 ################################ Get DaTa (gdt) class #########################################
@@ -133,7 +191,7 @@ class gdt(ond):
         self.bid_df = pd.DataFrame()
 
         # tpqoa object to download historical data
-        self.api_oanda = tpqoa.tpqoa(conf_file)
+        #self.api_oanda = tpqoa.tpqoa(conf_file)
 
         gdt.check_create_path(self.namefiles_dict)
         return
@@ -207,93 +265,6 @@ class gdt(ond):
                 print("\nreport: Dataframe {} is None".format(k))
         print("\nreport: displaying information about training set statistics")
         print("report: params is {}".format(self.params))
-        return
-    #
-    #
-    # def _get_history(self, instrument = None,
-    #                                 start = None,
-    #                                 end = None,
-    #                                 granularity = None,
-    #                                 price = None,
-    #                                 localize = False):
-    #     '''
-    #     helper function used in multithreaded data collection
-    #     '''
-    #     print("Thread started with price ", price)
-    #     df =  self.api_oanda.get_history(
-    #                                 instrument,
-    #                                 start,
-    #                                 end,
-    #                                 granularity,
-    #                                 price,
-    #                                 localize).dropna() #.to_frame() #).c.dropna()...
-    #     if price == "A":
-    #         self.ask_df = df.copy()
-    #         print("Got ASK data ", self.ask_df.columns)
-    #     elif price =="B":
-    #         self.bid_df = df.copy()
-    #         print("Got BID data ", self.bid_df.columns)
-    #     else:
-    #         print("price not recognized!")
-    #
-    #     i = self.barrier.wait() #sync with other tasks
-    #     if i == 0:
-    #         # Only one thread needs to print this
-    #         print("passed the barrier")
-    #     return
-    #
-
-    def get_most_recent(self, granul="S5", days = 1):
-        '''
-        Get the most recent data for the instrument for which the object was created
-        :param granul: base frequency for raw data being downloaded
-        :param days: number of past days (from today) we are downloading data for
-        '''
-
-        # set start and end date for historical data retrieval
-        now = datetime.utcnow()
-        now = now - timedelta(microseconds = now.microsecond)
-        past = now - timedelta(days = days)
-
-        # get historical data up to now
-        logging.info("get_most_recent: getting historical data from Oanda... ")
-        self.barrier = threading.Barrier(2,timeout=20)
-        ask_thread = threading.Thread(target=self._get_history,
-                                  args=(self.instrument, past, now, granul, "A", False))
-        bid_thread = threading.Thread(target=self._get_history,
-                                  args=(self.instrument, past, now, granul,"B", False))
-        ask_thread.start()
-        bid_thread.start()
-        ask_thread.join()
-        bid_thread.join()
-
-        # combine price information to derive the spread
-        for p in "ohlc":
-            self.raw_data['sprd_{}'.format(p)] = self.ask_df['{}'.format(p)] - \
-                                                 self.bid_df['{}'.format(p)]
-            self.raw_data['ask_{}'.format(p)] = self.ask_df['{}'.format(p)]
-            self.raw_data['bid_{}'.format(p)] = self.bid_df['{}'.format(p)]
-        self.raw_data['volume'] = (self.ask_df["volume"] +  self.bid_df["volume"])/2
-
-        # averaging o,h,c,l values between ask and bid
-        for p in "ohlc":
-            self.raw_data[p] = (self.ask_df[p] + self.bid_df[p])/2
-
-        # averaging spread across o,h,l,c
-        col = self.raw_data.loc[:, ['sprd_{}'.format(p) for p in "ohlc"]]
-        self.raw_data["spread"] = col.mean(axis=1)
-
-        # dropping all temporary columns
-        self.raw_data.drop(columns=[ p for p in self.raw_data.columns if "_" in p ], inplace=True)
-
-        # renaming c as instrument as it will be used as reference price
-        self.raw_data.rename(columns={"c": self.instrument}, inplace=True)
-
-        print("get_most_recent: self.raw_data.info() ", self.raw_data.info())
-
-        # check for any missing data: TODO: is this useful here??
-        assert (not self.raw_data.isnull().values.any()), \
-            "get_most_recent: 1-NANs in self.raw_data_featured" #
         return
 
     def make_features(self, window = 10, sma_int=5):
@@ -755,10 +726,10 @@ class trd(ond, tpqoa.tpqoa):
         self.mu = mu
         self.std = std
         self.tick_data = pd.DataFrame()
-        self.hist_data = None
+        self.hist_data = pd.DataFrame()
         self.min_length = None
-        self.raw_data = None
-        self.data = None
+        self.raw_data = pd.DataFrame()
+        self.data = pd.DataFrame()
         self.profits = []
 
         self.barrier = None
@@ -888,99 +859,17 @@ class trd(ond, tpqoa.tpqoa):
             print(100 * "-" + "\n")
         return
 
-    # def _get_history(self, instrument = None,
-    #                                 start = None,
-    #                                 end = None,
-    #                                 granularity = None,
-    #                                 price = None,
-    #                                 localize = False):
-    #     '''
-    #     helper function used in multithreaded data collection
-    #     '''
-    #     print("Thread started with price ", price)
-    #     df =  self.get_history(instrument,
-    #                             start,
-    #                             end,
-    #                             granularity,
-    #                             price,
-    #                             localize).dropna() #.to_frame() #).c.dropna()...
-    #     if price == "A":
-    #         self.ask_df = df.copy()
-    #         print("Got ASK data ", self.ask_df.columns)
-    #     elif price =="B":
-    #         self.bid_df = df.copy()
-    #         print("Got BID data ", self.bid_df.columns)
-    #     else:
-    #         print("price not recognized!")
-    #
-    #     i = self.barrier.wait() #sync with other tasks
-    #     if i == 0:
-    #         # Only one thread needs to print this
-    #         print("passed the barrier")
-    #     return
-
-
-    def get_most_recent(self, granul="S5", days = 1): # TODO: this is copy of gdt.get_most_recent: unify
-        '''
-        Get the most recent data for the instrument for which the object was created
-        :param granul: base frequency for raw data being downloaded
-        :param days: number of past days (from today) we are downloading data for
-        '''
-        # set start and end date for historical data retrieval
-        now = datetime.utcnow()
-        now = now - timedelta(microseconds = now.microsecond)
-        past = now - timedelta(days = days)
-
-        # get historical data up to now
-        df = pd.DataFrame()
-        logging.info("get_most_recent: getting historical data from Oanda... ")
-        self.barrier = threading.Barrier(2,timeout=20)
-        ask_thread = threading.Thread(target=self._get_history,
-                                  args=(self.instrument, past, now, granul, "A", False))
-        bid_thread = threading.Thread(target=self._get_history,
-                                  args=(self.instrument, past, now, granul,"B", False))
-        ask_thread.start()
-        bid_thread.start()
-        ask_thread.join()
-        bid_thread.join()
-
-        # combine price information to derive the spread -
-        # Todo: time of trading may be relevant and data could be empty? no.. this is historycal data!
-        # Why is this returning and empty dataframe?
-        df.info()
-        for p in "ohlc":
-            print(p)
-            df['sprd_{}'.format(p)] = self.ask_df['{}'.format(p)] - self.bid_df['{}'.format(p)]
-            df['ask_{}'.format(p)] = self.ask_df['{}'.format(p)]
-            df['bid_{}'.format(p)] = self.bid_df['{}'.format(p)]
-        df['volume'] = self.ask_df["volume"]
-
-        # averaging o,h,c,l values between ask and bid
-        for p in "ohlc":
-            df[p] = (self.ask_df[p] + self.bid_df[p])/2
-
-        # averaging spread across o,h,l,c
-        col = df.loc[:, ['sprd_{}'.format(p) for p in "ohlc"]]
-        df["spread"] = col.mean(axis=1)
-
-        # dropping all temporary columns
-        df.drop(columns=[ p for p in df.columns if "_" in p ], inplace=True)
-
-        # todo: this differs from gdt class. Why??
-        # df['c'] = (self.ask_df["c"] + self.ask_df['c'])/2
-        df.rename(columns={"c": self.instrument}, inplace=True)
-
-        print("\nhistory dataframe information:\n", df.info())
-
-        logging.info("get_most_recent: resampling recent history to chosen bar length in line" +
+    def resample_hist_data(self):
+        logging.info("resample_hist_data: resampling recent history to chosen bar length in line" +
                      " with the training data used to train the model")
-        df = df.resample(self.bar_length, label="right").last().dropna().iloc[:-1]
+        self.raw_data = self.raw_data.resample(self.bar_length, label="right").\
+                            last().dropna().iloc[:-1]
 
-        self.hist_data = df.copy()
+        self.hist_data = self.raw_data.copy()
         self.min_length = len(self.hist_data) + 1
 
         print("\nresampled history dataframe information:\n")
-        df.info()
+        self.raw_data.info()
         return
 
     def resample_and_join(self):
@@ -1182,8 +1071,8 @@ if __name__ == '__main__':
     odc = gdt(instrument_file=cfginst, conf_file=cfg.conf_file)
 
     print('OandaDataCollector object created for instrument {}'.format(cfginst.instrument))
-    NEW_DATA = True
-    REPORT_only = False
+    NEW_DATA = False
+    REPORT_only = True
     if not REPORT_only:
         if NEW_DATA:
             # actual data collection of most recent data
@@ -1215,7 +1104,7 @@ if __name__ == '__main__':
     ######################## train  ########################
     model_id = "LSTM_dnn_all_states_mout" # "LSTM_dnn" #"ffn" #""dnn1" # #
 
-    TRAIN = True
+    TRAIN = False
     EPOCHS = 50
     DROPOUT = 0.1
     if TRAIN:
@@ -1262,15 +1151,21 @@ if __name__ == '__main__':
                  std=std)
 
     # either live trading or testing (back or fw testing)
-    TRADING = 1
+    TRADING = 0
     BCKTESTING, FWTESTING = (1, 0) if not TRADING else (0, 0)  # todo: do it better!!
 
 
     if TRADING:
-        trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)  # get historical data
+        # get historical data to compute features that requires past data
+        trader.get_most_recent(days=cfginst.days_inference, granul=cfginst.granul)
+
+        # resample historical data
+        trader.resample_hist_data()
         logging.info("main: most recent historical data obtained and resampled" +
                      "now starting streaming data and trading...")
-        trader.stream_data(cfginst.instrument, stop=cfginst.stop_trading)  # streaming & trading here!!!!
+
+        # streaming & trading here!!!!
+        trader.stream_data(cfginst.instrument, stop=cfginst.stop_trading)
 
         if trader.position != 0:
             print("Closing position as we are ending trading!")
