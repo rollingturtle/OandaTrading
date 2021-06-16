@@ -124,10 +124,15 @@ def dnn1(hu_list=(128, 32, 16),
 def LSTM_dnn(dropout=0.0, inputs=None):
     inputs = keras.layers.Input(shape=(inputs.shape[1],inputs.shape[2]))
     lstm_out = keras.layers.LSTM(64, dropout=dropout)(inputs) # Todo: make dimension of LSTM a param
+
     outputs = keras.layers.Dense(1, activation="sigmoid")(lstm_out)
+
     model = keras.Model(inputs=inputs, outputs=outputs)
+
     model.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=['acc'])
+
     model.summary()
+
     return model
 
 def LSTM_dnn_all_states(dropout=0.0, inputs=None):
@@ -155,7 +160,6 @@ def LSTM_dnn_all_states_mout(dropout=0.0, inputs=None):
     lstm_out = keras.layers.LSTM(32,dropout=dropout,
                                  return_sequences=True)(inputs) # Todo: make dimension of LSTM a param
     lstm_out_flatten = keras.layers.Flatten()(lstm_out)
-    #lstm_out_flatten = keras.layers.AveragePooling1D(pool_size=inputs.shape[1])(lstm_out)
 
     x = Dropout(dropout, seed=100)(lstm_out_flatten)
     out = keras.layers.Dense(1, activation="sigmoid", name="out")(x)
@@ -186,8 +190,6 @@ def recurrent_VAE_cell(inputs, previous_notes):
     inputs = keras.layers.Input(shape=(inputs.shape[1]))
     previous_notes = keras.layers.Input(shape=(previous_notes.shape[1],
                                                previous_notes.shape[2]))
-
-
 
     pass
 

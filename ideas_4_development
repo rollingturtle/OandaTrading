@@ -39,15 +39,17 @@ review how this tick data grows: I should prepare tick data to later extend hist
 - get bid and ask for historical and do better backtesting/fwtesting with better trading cost estimation
 maybe with the assumption that spread does not change much
 - model to leverage more tasks, and strategy that takes into account all the model outputs
+- make use of fun_classes, remove other files, create ctrl class
 
 Todo (Backlog):
-- make use of fun_classes, remove other files, create ctrl class
+-  add confusion matrix generation in trainer (tf2.0 course ann mnist)
+
+- create unified interface to various steps. get data, train, trade, test. Best would be to make it
+usable from a jupnb- ctrl class continue (make dedicate branch out of current master)
 
 - make jupnb, check that pycharm folder is in google disk, start using colab and GPU
 
-- tasks seems to be linearly not correalated: better tasks or differentiate outputs with more layers?
-
--  add confusion matrix generation in trainer (tf2.0 course ann mnist)
+- tasks seems to be linearly not correlated: better tasks or differentiate outputs with more layers?
 
 - save models with callback based on eval accuracy
 

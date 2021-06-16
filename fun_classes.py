@@ -7,6 +7,10 @@ import os
 sys.path.append('../')
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
+# confusion matrix visualization
+from sklearn.metrics import confusion_matrix
+import itertools
+
 # data
 import pandas as pd
 import tpqoa
@@ -612,6 +616,10 @@ class trn(ond):
         plt.legend()
         plt.show()
         plt.figure()
+
+        # Todo: add visualization of confusion matrix for binary task(s)
+        self.make_predictions()
+
         return
 
     @classmethod
@@ -684,20 +692,31 @@ class trn(ond):
         return
 
     def make_predictions(self):
-        print("make_predictions: just testing predictions for later trading applications")
-        if self.model_id == "ffn" or self.model_id == "ffn":  # todo : do this better
+        print("make_predictions: predictions on training data")
+
+        # todo : do this better - models should be grouped
+        # non-sequence aware
+        if self.model_id == "ffn":
             pred = self.model.predict(self.train_data[self.lagged_cols], verbose=True)
+        # sequence aware
         elif self.model_id == "LSTM_dnn" or \
-                self.model_id ==  "LSTM_dnn_all_states":
+                self.model_id ==  "LSTM_dnn_all_states" or \
+                self.model_id == "LSTM_dnn_all_states_mout":
             numpy_train = self._get_3d_tensor(self.train_data[self.lagged_cols_reordered]. \
                 to_numpy(), cfginst)
             pred = self.model.predict(numpy_train, verbose=True)
-        print(pred)
+        #print(pred)
+        else:
+            print("make_predictions: model not recognized!")
+            assert 0
 
         print("make_predictions: confusion matrix on train data for market direction next time step")
         if self.model_id == "LSTM_dnn_all_states_mout":
             pred = pred[:,0]
-        print(keras.metrics.confusion_matrix(self.test_targets["dir"], pred))
+        cm = keras.metrics.confusion_matrix(self.train_targets["dir"], pred)
+        print(cm)
+        u.plot_confusion_matrix(cm,[0,1])
+
         return
 
 
@@ -1056,6 +1075,8 @@ class ctrl:
         # return
 
 
+
+################################################## main ###############################################
 
 if __name__ == '__main__':
     '''
