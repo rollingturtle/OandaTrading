@@ -163,6 +163,7 @@ class gdt(ond):
                  conf_file, # General conf Oanda conf file
                  instrument_file):  # instrument conf file
 
+        print("gdt: using conf file and instrument file:  \n{} \n{} ", conf_file, instrument_file)
         super(gdt, self).__init__(conf_file, instrument_file)
 
         # raw tick data, and resampled version which has precise time interval
@@ -1065,7 +1066,7 @@ if __name__ == '__main__':
     ####  IMPORTANT ####
     ####  change this import pointing to the
     ####  wanted/needed configuration
-    import configs.EUR_NOK_1 as cfginst
+    import configs.EUR_PLN_2 as cfginst
 
     ######################## data  ########################
     odc = gdt(instrument_file=cfginst, conf_file=cfg.conf_file)
@@ -1104,7 +1105,7 @@ if __name__ == '__main__':
     ######################## train  ########################
     model_id = "LSTM_dnn_all_states_mout" # "LSTM_dnn" #"ffn" #""dnn1" # #
 
-    TRAIN = False
+    TRAIN = True
     EPOCHS = 50
     DROPOUT = 0.1
     if TRAIN:
