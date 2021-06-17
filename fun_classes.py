@@ -513,6 +513,10 @@ class trn(ond):
             self.model = m.LSTM_dnn_all_states_mout(dropout = dropout,
                                     inputs = np.zeros((1, self.instrument_file.lags,
                                                        len(self.instrument_file.features))))
+        elif self.model_id =="SimpleRNN_dnn_all_states_mout":
+            self.model = m.SimpleRNN_dnn_all_states_mout(dropout=dropout,
+                                                    inputs=np.zeros((1, self.instrument_file.lags,
+                                                                     len(self.instrument_file.features))))
         elif self.model_id == "ffn":
             self.model = m.ffn(self.train_data[self.lagged_cols],
                               rate=0.1)
@@ -570,7 +574,8 @@ class trn(ond):
                       batch_size=64,  # Todo make BS a param
                       class_weight = m.cw(self.train_targets))
 
-        elif self.model_id == "LSTM_dnn_all_states_mout":
+        elif self.model_id == "LSTM_dnn_all_states_mout" or \
+                        self.model_id =="SimpleRNN_dnn_all_states_mout":
             # inputs: A 3D tensor with shape [batch, timesteps, feature].
 
             numpy_train = trn._get_3d_tensor(
@@ -605,7 +610,8 @@ class trn(ond):
         plt.show()
 
 
-        acc_str = "acc" if self.model_id != "LSTM_dnn_all_states_mout" else "out_acc"
+        acc_str = "acc" if (self.model_id != "LSTM_dnn_all_states_mout" and \
+            self.model_id != "SimpleRNN_dnn_all_states_mout") else "out_acc"
         plt.figure()
         plt.plot(r.history[acc_str], label=acc_str)
         plt.plot(r.history['val_' + acc_str], label="val_" + acc_str)
@@ -657,7 +663,8 @@ class trn(ond):
                 to_numpy(), cfginst)
             self.model.evaluate(numpy_test, self.test_targets["dir"].to_numpy(), verbose=True)
 
-        elif self.model_id == "LSTM_dnn_all_states_mout":
+        elif self.model_id == "LSTM_dnn_all_states_mout" or \
+                self.model_id == "SimpleRNN_dnn_all_states_mout":
             # inputs: A 3D tensor with shape [batch, timesteps, feature].
 
             numpy_train_targets = self.train_targets[["dir", "dir_sma1", "dir_sma2"]].to_numpy()
@@ -695,7 +702,8 @@ class trn(ond):
         print(pred)
 
         print("make_predictions: confusion matrix on train data for market direction next time step")
-        if self.model_id == "LSTM_dnn_all_states_mout":
+        if self.model_id == "LSTM_dnn_all_states_mout" or\
+                self.model_id =="SimpleRNN_dnn_all_states_mout":
             pred = pred[:,0]
         print(keras.metrics.confusion_matrix(self.test_targets["dir"], pred))
         return
@@ -923,7 +931,8 @@ class trd(ond, tpqoa.tpqoa):
 
         elif self.model_id == "LSTM_dnn" \
                 or self.model_id == "LSTM_dnn_all_states"\
-                or self.model_id == "LSTM_dnn_all_states_mout":
+                or self.model_id == "LSTM_dnn_all_states_mout"\
+                or self.model_id == "SimpleRNN_dnn_all_states_mout":
             # reoder features
             for lag in range(1, self.lags + 1):
                 for feat in self.features:
@@ -1102,9 +1111,10 @@ if __name__ == '__main__':
 
 
     ######################## train  ########################
-    model_id = "LSTM_dnn_all_states_mout" # "LSTM_dnn" #"ffn" #""dnn1" # #
+    #model_id = "LSTM_dnn_all_states_mout" # "LSTM_dnn" #"ffn" #""dnn1" # #
+    model_id = "SimpleRNN_dnn_all_states_mout"
 
-    TRAIN = False
+    TRAIN = True
     EPOCHS = 50
     DROPOUT = 0.1
     if TRAIN:
